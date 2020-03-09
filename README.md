@@ -32,3 +32,18 @@ token = 'YOUR_TOKEN'
 python3 main.py
 ```
 
+
+
+Reference:
+1. Python bot script 
+https://www.youtube.com/watch?v=h1QGky22b-k
+https://github.com/magnitopic/YouTubeCode/blob/master/Python/TelegramBots/TelegramBot.py
+
+2. Random pic
+https://www.freecodecamp.org/news/learn-to-build-your-first-bot-in-telegram-with-python-4c99526765e4/
+
+3. Send email
+https://www.youtube.com/watch?v=JRCJ6RtE3xU
+https://github.com/CoreyMSchafer/code_snippets/blob/master/Python/Emails/mail-demo.py
+https://www.youtube.com/watch?v=XE-DS5pRFUo&list=LL105Q5fXzB9d9EAEDwMF04g
+
