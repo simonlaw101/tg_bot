@@ -14,3 +14,8 @@ CREATE TABLE IF NOT EXISTS currencies (
     code text PRIMARY KEY,
 	descs text NOT NULL
 );
+-- indices table
+CREATE TABLE IF NOT EXISTS indices (
+    code text PRIMARY KEY,
+	descs text NOT NULL
+);

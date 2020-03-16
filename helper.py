@@ -5,18 +5,26 @@ class Helper:
                      'h':self.help}
         self.desc = {}
         
-        stk_example = ('/stk CODE\n'
+        stk_example = ('/s CODE\n'
                         'example 1: get stock price of HSBC\n'
-                        'e.g. /stk 5\n'
-                        'e.g. /stk 0005')
+                        'e.g. /s 5\n'
+                        'e.g. /s 0005')
         
-        fx_example = ('/fx CCY [to CCY]\n'
+        fx_example = ('/c CCY [to CCY]\n'
                       'example 1: get exchange rate of HKD to CNY\n'
-                      'e.g. /fx hkd to cny\n\n'
+                      'e.g. /c hkd to cny\n\n'
                       'example 2: get exchange rate of JPY to HKD\n'
-                      'e.g. /fx jpy\n\n'
+                      'e.g. /c jpy\n\n'
                       '(if only 1 currency, to HKD by default)')
 
+        i_example = ('/i CODE\n'
+                     'example 1: get S&P 500 Index\n'
+                     'e.g. /i gspc\n\n'
+                     'example 2: get Hang Seng Index\n'
+                     'e.g. /i\n'
+                     'e.g. /i hsi\n\n'
+                     '(if no code provided, get Hang Seng Index by default)')
+        
         alert_example = ('/alert CODE [OPERATOR] AMT\n'
                          '/alert CCY [to CCY] [OPERATOR] AMT\n'
                          'example 1: set alert when HSBC stock is lower than 50\n'
@@ -27,6 +35,9 @@ class Helper:
                          'e.g. /alert jpy 0.07\n\n'
                          'example 3: set alert when rate of HKD to TWD is higher than 3.8\n'
                          'e.g. /alert hkd to twd &gt3.8\n\n'
+                         'example 4: set alert when Hang Seng Index is lower than 25000\n'
+                         'e.g. /alert hsi 25000\n'
+                         'e.g. /alert hsi &lt25000\n\n'
                          '(if only 1 currency, to HKD by default)\n'
                          '(if no comparison operator, &lt by default)\n\n\n'
                          '/alert\n'
@@ -40,7 +51,9 @@ class Helper:
                          'example 2: clear alerts on exchange rate JPY to HKD\n'
                          'e.g. /reset jpy\n'
                          'e.g. /reset jpy to hkd\n\n'
-                         'example 3: clear all alerts\n'
+                         'example 3: clear alerts on Hang Seng Index\n'
+                         'e.g. /reset hsi\n\n'
+                         'example 4: clear all alerts\n'
                          'e.g. /reset')
 
         ccy_example = ('/ccy\n'
@@ -49,11 +62,24 @@ class Helper:
                        'example 2: list all currencies\n'
                        'e.g. /ccy')
 
-        self.examples = {'stk': stk_example,
-                         'fx': fx_example,
+        idx_example = ('/idx\n'
+                       'example 1: search index with keyword "Hang Seng"\n'
+                       'e.g. /idx hang seng\n\n'
+                       'example 2: list all indices\n'
+                       'e.g. /idx')
+
+        us_example = ('/us\n'
+                       'example 1: search IBM US stock price\n'
+                       'e.g. /us ibm')
+        
+        self.examples = {'s': stk_example,
+                         'c': fx_example,
+                         'i': i_example,
                          'alert': alert_example,
                          'reset': reset_example,
-                         'ccy': ccy_example}
+                         'ccy': ccy_example,
+                         'idx': idx_example,
+                         'us': us_example}
 
     def help(self, data):
         data['method'] = 'sendMessage'

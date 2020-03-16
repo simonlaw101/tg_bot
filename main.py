@@ -12,8 +12,7 @@ token = 'YOUR_TOKEN'
 refresh_time = 0.2
 under_maint = False
 modules = [FxStock(enabled=True, send_email=False),
-           Helper(enabled=True),
-           Other(enabled=True)]
+           Helper(enabled=True)]
 
 logger = logging.getLogger('FxStock')
 logger.setLevel(logging.INFO)
@@ -31,12 +30,17 @@ class Bot:
         self.api_url = "https://api.telegram.org/bot{}/".format(token)
         self.refresh_time = refresh_time
         self.under_maint = under_maint
-        self.cmds = {'start':self.send_cmd_list}
+        self.cmds = {'start':self.send_cmd_list,
+                     'freq':self.set_freq}
         self.desc = ''
         for module in modules:
             if module.enabled:
                 self.cmds.update(module.cmds)
                 self.desc += ''.join(['/{} - {}\n'.format(k,v) for k,v in module.desc.items()])
+                
+        self.start_time = '00:55'
+        self.end_time = '08:05'
+        self.check_min = '0'
                 
     def run(self):
         new_offset = 0
@@ -45,8 +49,15 @@ class Bot:
             time.sleep(self.refresh_time)
             logger.info('')
 
-            if not(self.under_maint) and datetime.datetime.now().strftime("%M").endswith('0'):
-                self.execute('check', {})
+            if not(self.under_maint):
+                current_time = datetime.datetime.now().strftime("%H:%M")
+                last_digit = current_time[-1]
+                if current_time==self.start_time:
+                    self.execute('freq', {'args':'-2'})
+                elif current_time==self.end_time:
+                    self.execute('freq', {'args':'-10'})
+                if last_digit in self.check_min:
+                    self.execute('check', {})
             
             all_updates = self.get_updates(new_offset)
 
@@ -113,17 +124,20 @@ class Bot:
     def get_data(self, json_obj):
         message_obj = json_obj.get('message', json_obj.get('edited_message',{}))
         message_text = message_obj.get('text','')
-        
+        chat_id = message_obj.get('chat',{}).get('id','')
+            
         if 'from' in message_obj:
+            from_id = message_obj['from'].get('id','')
             first_name = message_obj['from'].get('first_name','')
             last_name = message_obj['from'].get('last_name','')
             sender_name = first_name+' '+last_name
         else:
+            from_id = ''
             sender_name = "unknown"
 
         return {'update_id': json_obj['update_id'],
-                'chat_id': message_obj['chat']['id'],
-                'from_id': message_obj['from']['id'],
+                'chat_id': chat_id,
+                'from_id': from_id,
                 'message_text': message_text,
                 'sender_name': sender_name.strip()}
     
@@ -135,6 +149,28 @@ class Bot:
         data['method'] = 'sendMessage'
         data['text'] = 'The bot is currently unavailable due to maintenance.\nWe apologize for any inconvenience caused.'
 
+    def set_freq(self, data):
+        args = data['args'].strip()
+        if args=='':
+            data['method'] = 'sendMessage'
+            data['text'] = 'Check frequency: {} mins'.format(self.check_min[0].replace('0','10'))
+        elif args=='2':
+            self.check_min = '24680'
+            data['method'] = 'sendMessage'
+            data['text'] = 'You have set the check frequency to 2 mins'
+        elif args=='10':
+            self.check_min = '0'
+            data['method'] = 'sendMessage'
+            data['text'] = 'You have set the check frequency to 10 mins'
+        elif args=='-2':
+            self.check_min = '24680'
+        elif args=='-10':
+            self.check_min = '0'
+        else:
+            data['method'] = 'sendMessage'
+            data['text'] = '"{}" is not a valid frequency. We only support 2 and 10'.format(args)
+
+            
 def main():
     bot = Bot(token, refresh_time, under_maint)
     bot.run()
