@@ -1,6 +1,8 @@
 import datetime
 import json
 import logging
+import sched
+import sys
 import time
 from urllib import request, parse
 
@@ -10,12 +12,11 @@ from helper import Helper
 #Setting
 token = 'YOUR_TOKEN'
 refresh_time = 0.2
-under_maint = False
 modules = [FxStock(enabled=True, send_email=False),
            Helper(enabled=True)]
 
 logger = logging.getLogger('FxStock')
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 formatter = logging.Formatter('[%(asctime)s] %(levelname)s [%(module)s.%(funcName)s:%(lineno)d] %(message)s')
 file_handler = logging.FileHandler('log/fxstock.log')
 file_handler.setFormatter(formatter)
@@ -26,10 +27,11 @@ logger.addHandler(stream_handler)
 
 
 class Bot:
-    def __init__(self, token, refresh_time=0.2, under_maint=False):
+    def __init__(self, token, refresh_time=0.2):
         self.api_url = "https://api.telegram.org/bot{}/".format(token)
         self.refresh_time = refresh_time
-        self.under_maint = under_maint
+        self.check_freq = 10
+        self.scheduler = sched.scheduler(time.time, time.sleep)
         self.cmds = {'start':self.send_cmd_list,
                      'freq':self.set_freq}
         self.desc = ''
@@ -37,52 +39,66 @@ class Bot:
             if module.enabled:
                 self.cmds.update(module.cmds)
                 self.desc += ''.join(['/{} - {}\n'.format(k,v) for k,v in module.desc.items()])
-                
-        self.start_time = '00:55'
-        self.end_time = '08:05'
-        self.check_min = '0'
-                
+        
+        self.start_time = self.get_timestamp(0, 50, 0)  #00:50
+        self.end_time = self.get_timestamp(8, 0, 0)     #08:00
+
+    def get_timestamp(self, h, m, s):
+        now = datetime.datetime.now()
+        sched_time = datetime.datetime(now.year, now.month, now.day, h, m, s)
+        if sched_time < now:
+            sched_time = sched_time.replace(day=now.day+1)
+        return sched_time.timestamp()
+        
     def run(self):
-        new_offset = 0
-    
-        while True:
-            time.sleep(self.refresh_time)
-            logger.info('')
+        logger.info('Bot is running...')
+        self.scheduler.enter(self.refresh_time, 0, self.check_msg)
+        self.scheduler.enter(self.check_freq*60, 0, self.check_alert)
+        #self.scheduler.enterabs(self.start_time, 0, self.start_trade)
+        #self.scheduler.enterabs(self.end_time, 0, self.end_trade)
+        self.scheduler.run()
 
-            if not(self.under_maint):
-                current_time = datetime.datetime.now().strftime("%H:%M")
-                last_digit = current_time[-1]
-                if current_time==self.start_time:
-                    self.execute('freq', {'args':'-2'})
-                elif current_time==self.end_time:
-                    self.execute('freq', {'args':'-10'})
-                if last_digit in self.check_min:
-                    self.execute('check', {})
+    def check_msg(self, new_offset=0):
+        all_updates = self.get_updates(new_offset)
+        
+        for current_update in all_updates:
             
-            all_updates = self.get_updates(new_offset)
+            data = self.get_data(current_update)
+            message_text = data['message_text']
+            
+            if message_text.startswith('/'):
+                end_idx = len(message_text) if message_text.find(' ') < 0 else message_text.find(' ')
+                cmd = message_text[1:end_idx]
+                data['args'] = message_text[end_idx+1:]
+                
+                self.execute(cmd, data)
+            
+            new_offset = data['update_id'] + 1
+            logger.info('new_offset: ['+str(new_offset)+']')
 
-            for current_update in all_updates:
-                
-                data = self.get_data(current_update)
-                message_text = data['message_text']
-                
-                if message_text.startswith('/'):
-                    end_idx = len(message_text) if message_text.find(' ') < 0 else message_text.find(' ')
-                    cmd = message_text[1:end_idx]
-                    data['args'] = message_text[end_idx+1:]
-                    
-                    self.execute(cmd, data)
-                    
-                new_offset = data['update_id'] + 1
-                
+        self.scheduler.enter(self.refresh_time, 0, self.check_msg, (new_offset,))
+
+    def check_alert(self):
+        self.execute('check', {})
+        self.scheduler.enter(self.check_freq*60, 0, self.check_alert)
+
+    def start_trade(self):
+        #self.execute('ma', {'args':'CODE','chat_id':'CHAT_ID'})   #health check
+        self.execute('freq', {'args':'-2'})
+        self.scheduler.enter(60*60*24, 0, self.start_trade)
+        
+    def end_trade(self):
+        self.execute('freq', {'args':'-10'})
+        self.scheduler.enter(60*60*24, 0, self.end_trade)
+        
     def execute(self, cmd, data):
         try:
             if cmd in self.cmds.keys():
                 logger.info('command: [{}]'.format(cmd))
-                if under_maint:
-                    self.send_maint_msg(data)
-                else:
-                    self.cmds[cmd](data)
+
+                #self.send_maint_msg(data)  #maintenance
+                self.cmds[cmd](data)
+                
                 if data.get('method')=='sendMessage':
                     self.send_message(data)
                 elif data.get('method')=='sendMultiMessage':
@@ -102,7 +118,7 @@ class Bot:
                 return json.loads(resp.read())
         except Exception as e:
             #handle urllib.error.HTTPError: HTTP Error 500: Internal Server Error
-            logger.exception('main send_request Exception: '+str(e))
+            logger.error('main send_request Exception: '+str(e))
             return {}
         
     def get_updates(self, offset=0, timeout=30):
@@ -153,33 +169,28 @@ class Bot:
         args = data['args'].strip()
         if args=='':
             data['method'] = 'sendMessage'
-            data['text'] = 'Check frequency: {} mins'.format(self.check_min[0].replace('0','10'))
-        elif args=='2':
-            self.check_min = '24680'
+            data['text'] = 'Check frequency: {} mins'.format(self.check_freq)
+        elif args in ['-2','-10']:
+            self.check_freq = int(args)*-1
+        elif args in ['2','10','60']:
+            self.check_freq = int(args)
             data['method'] = 'sendMessage'
-            data['text'] = 'You have set the check frequency to 2 mins'
-        elif args=='10':
-            self.check_min = '0'
-            data['method'] = 'sendMessage'
-            data['text'] = 'You have set the check frequency to 10 mins'
-        elif args=='-2':
-            self.check_min = '24680'
-        elif args=='-10':
-            self.check_min = '0'
+            data['text'] = 'You have set the check frequency to {} mins'.format(args)
         else:
             data['method'] = 'sendMessage'
-            data['text'] = '"{}" is not a valid frequency. We only support 2 and 10'.format(args)
+            data['text'] = '"{}" is not a valid frequency. We only support 2, 10 and 60'.format(args)
 
             
 def main():
-    bot = Bot(token, refresh_time, under_maint)
+    bot = Bot(token, refresh_time)
     bot.run()
 
 if __name__ == '__main__':
     try:
         main()
     except KeyboardInterrupt as e:
-        logger.exception('main KeyboardInterrupt Exception: '+str(e))
-        exit()
-        
+        logger.info('Bot is stopped.')
+        logger.debug('main KeyboardInterrupt Exception: '+str(e))
+        sys.exit(0)
+
         

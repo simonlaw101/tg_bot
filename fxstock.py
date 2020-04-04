@@ -14,14 +14,14 @@ class FxStock:
         self.cmds = {'s':self.get_stk,
                      'c':self.get_fx,
                      'i':self.get_idx,
-                     'stk':self.get_stk,
-                     'fx':self.get_fx,
                      'alert':self.alert,
                      'reset':self.reset,
                      'ccy':self.get_ccy,
                      'idx':self.get_idx_lst,
                      'check':self.check,
-                     'us':self.get_us_stk}
+                     'us':self.get_us_stk,
+                     'ma':self.get_ma,
+                     'rsi':self.get_rsi}
         self.desc = {'s': 'get stock price',
                      'c': 'get currency exchange rate',
                      'i': 'get index',
@@ -29,7 +29,9 @@ class FxStock:
                      'reset': 'clear alert',
                      'ccy': 'search currency code',
                      'idx': 'search index symbol',
-                     'us': 'get us stock price'}
+                     'us': 'get us stock price',
+                     'ma': 'get stock moving average',
+                     'rsi': 'get stock relative strength index'}
         self.db = DB()
         self.ccy_dct = self.get_ccy_dct()
         self.ccy_lst = ''.join(['{} - {}\n'.format(k,v) for k,v in self.ccy_dct.items()])
@@ -72,25 +74,32 @@ class FxStock:
         headers = {'User-Agent':''}
         page = self.send_request(url,headers)
         soup = BeautifulSoup(page.content, 'html.parser')
-        company_ele = soup.find('h1',{'class':'D(ib) Fz(18px)'})
-        price_ele = soup.find('span',{'class':'Trsdu(0.3s) Fw(b) Fz(36px) Mb(-4px) D(ib)'})
-        
-        change_ele = soup.find('span',{'class':'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($dataRed)'})
-        if change_ele is None:
-            change_ele = soup.find('span',{'class':'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($dataGreen)'})
-        if change_ele is None:
-            change_ele = soup.find('span',{'class':'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px)'})
-            
-        if price_ele is None:
-            logger.error('yahoo stock price is not available!')
-            return {}
-        else:       
-            company = company_ele.get_text(strip=True) if company_ele is not None else 'NA'
-            company = company[:company.find('(')].strip()
-            price = price_ele.get_text(strip=True).replace(',','')
-            change = change_ele.get_text(strip=True) if change_ele is not None else 'NA'
-            return {'company':company, 'price':price, 'change':change}
+        stock_info = {}
 
+        price_ele = soup.find('span',{'class':'Trsdu(0.3s) Fw(b) Fz(36px) Mb(-4px) D(ib)'})
+        if price_ele is None:
+            logger.error('yahoo finance stock price is not available!')
+        else:
+            stock_info['price'] = price_ele.get_text(strip=True).replace(',','')
+
+        company_ele = soup.find('h1',{'class':'D(ib) Fz(18px)'})
+        if company_ele is None:
+            logger.error('yahoo finance company name is not available!')
+        else:
+            company = company_ele.get_text(strip=True)
+            company = company[:company.find('(')].strip()
+            stock_info['company'] = company
+
+        change_ele = soup.find_all('span',{'class':['Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($dataRed)',
+                                                    'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($dataGreen)',
+                                                    'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px)']})
+        if change_ele is None or len(change_ele)==0:
+            logger.error('yahoo finance change is not available!')
+        else:
+            stock_info['change'] = change_ele[0].get_text(strip=True)
+        
+        return stock_info
+    
     #c command
     def get_fx(self, data):
         data['method'] = 'sendMessage'
@@ -146,28 +155,35 @@ class FxStock:
             data['text'] =  '<b><u>{}</u>\n{}    {}</b>'.format(idx_info.get('name','NA'), idx_info.get('price','NA'), idx_info.get('change','NA'))
     
     def get_idx_info(self, code):
-        url = 'https://finance.yahoo.com/quote/{}?p={}'.format(code, code)
+        url = 'https://finance.yahoo.com/quote/{0}?p={0}'.format(code)
         headers = {'User-Agent':''}
         page = self.send_request(url,headers)
         soup = BeautifulSoup(page.content, 'html.parser')
-        name_ele = soup.find('h1',{'class':'D(ib) Fz(18px)'})
+        idx_info = {}
+
         price_ele = soup.find('span',{'class':'Trsdu(0.3s) Fw(b) Fz(36px) Mb(-4px) D(ib)'})
-        
-        change_ele = soup.find('span',{'class':'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($dataRed)'})
-        if change_ele is None:
-            change_ele = soup.find('span',{'class':'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($dataGreen)'})
-        if change_ele is None:
-            change_ele = soup.find('span',{'class':'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px)'})
-        
         if price_ele is None:
-            logger.error('yahoo index is not available!')
-            return {}
-        else:       
-            name = name_ele.get_text(strip=True) if name_ele is not None else 'NA'
+            logger.error('yahoo finance index is not available!')
+        else:
+            idx_info['price'] = price_ele.get_text(strip=True).replace(',','')
+
+        name_ele = soup.find('h1',{'class':'D(ib) Fz(18px)'})
+        if name_ele is None:
+            logger.error('yahoo finance index name is not available!')
+        else:
+            name = name_ele.get_text(strip=True)
             name = name[:name.find('(')].strip()
-            price = price_ele.get_text(strip=True).replace(',','')
-            change = change_ele.get_text(strip=True) if change_ele is not None else 'NA'
-            return {'name':name, 'price':price, 'change':change}
+            idx_info['name'] = name
+        
+        change_ele = soup.find_all('span',{'class':['Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($dataRed)',
+                                                    'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($dataGreen)',
+                                                    'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px)']})
+        if change_ele is None or len(change_ele)==0:
+            logger.error('yahoo finance index change is not available!')
+        else:
+            idx_info['change'] = change_ele[0].get_text(strip=True)
+
+        return idx_info
         
     #alert command
     def alert(self, data):
@@ -186,14 +202,13 @@ class FxStock:
         from_id = data['from_id']
         sql = 'SELECT * FROM alerts WHERE fromid=?'
         param = (from_id,)
-        rows = self.db.execute(sql,param)
+        rows = self.db.execute(sql, param)
         if len(rows)==0:
             return '<b>No alert set.</b>'
         else:
             msg = ''
             for row in rows:
-                types = row[2]
-                code = row[3]
+                types, code, operators, amount = row[2], row[3], row[4], row[5]
                 code_text = code
                 
                 if types=='STK':
@@ -208,7 +223,7 @@ class FxStock:
                     current = self.get_idx_info(code).get('price','NA')
                     code_text = code_text.replace('%5E','')
                     
-                msg += '{} {} {}   ({})\n'.format(code_text,row[4],row[5], current)
+                msg += '{} {} {}   ({})\n'.format(code_text, operators, amount, current)
             return '<b>'+msg+'</b>'
 
     def verify_alert(self, data):
@@ -341,7 +356,7 @@ class FxStock:
         from_id = data['from_id']
         sql = 'DELETE FROM alerts WHERE fromid=?'
         param = (from_id,)
-        self.db.execute(sql,param)
+        self.db.execute(sql, param)
         return '<b>Hi {}, you have cleared all alerts.</b>'.format(data.get('sender_name',''))
 
     def verify_reset(self, data):
@@ -406,22 +421,19 @@ class FxStock:
         param = (from_id, types, code)
         sender_name = data.get('sender_name','')
         
-        desc = ''
+        desc = {'STK':'stock', 'FX':'exchange rate', 'IDX':'index'}[types]
         code_text = code
-        if types=='STK':
-            desc = 'stock'
-        elif types=='FX':
-            desc = 'exchange rate'
+
+        if types=='FX':
             code_text = code_text.replace(':',' to ')
         elif types=='IDX':
-            desc = 'index'
             code_text = code_text.replace('%5E','')
             
-        rows = self.db.execute(select_sql,param)
+        rows = self.db.execute(select_sql, param)
         if len(rows)==0:
             return '<b>Hi {}, you do not have alerts on {} {}</b>'.format(sender_name, desc, code_text)
         else:
-            self.db.execute(delete_sql,param)
+            self.db.execute(delete_sql, param)
             return '<b>Hi {}, you have cleared alerts on {} {}</b>'.format(sender_name, desc, code_text)
 
     #ccy command
@@ -448,8 +460,7 @@ class FxStock:
                 msg += '{} - {}\n'.format(k,v)
         if msg=='':
             return 'No results found.'
-        else:
-            return msg
+        return msg
 
     #idx command
     def get_idx_lst(self, data):
@@ -475,69 +486,49 @@ class FxStock:
                 msg += '{} - {}\n'.format(k,v)
         if msg=='':
             return 'No results found.'
-        else:
-            return msg
+        return msg
         
     #check command
     def check(self, data):
-        sql = 'SELECT * FROM alerts'
-        delete_sql = 'DELETE FROM alerts WHERE fromid=? AND types=? AND code=? AND operators=?'
-        rows = self.db.execute(sql)
+        select_sql = 'SELECT * FROM alerts'
+        rows = self.db.execute(select_sql)
         msgs = []
         for row in rows:
-            msg = {}
-            msg_template = '<b>Hi {},\n{} {} is now {},\n{} than {}</b>'
-            desc = ''
-            
-            from_id = row[0]
-            name = row[1]
-            chat_id = row[6]
-            types = row[2]
-            code = row[3]
-            operators = row[4]
-            amount = float(row[5])
+            from_id, name, types, code, operators, amount, chat_id = row
+            amount = float(amount)
             
             current = -1
             code_text = code
+            
             if types=='STK':
-                desc = 'stock price'
                 current = float(self.get_stock_info(code).get('price',-1))
             elif types=='FX':
-                desc = 'rate'
                 ccy = code.split(':')[0]
                 ccy2 = code.split(':')[1]
                 current = float(self.get_xrates(ccy, ccy2, 1))
                 code_text = code_text.replace(':',' to ')
             elif types=='IDX':
-                decs = 'index'
                 current = float(self.get_idx_info(code).get('price',-1))
                 code_text = code_text.replace('%5E','')
-
+                
             if current<0:
                 continue
-            elif operators=='&lt' and current < amount:
+            elif (operators=='&lt' and current < amount) or (operators=='&gt' and current > amount):
                 logger.info('name: [{}], code: [{}], current: [{}], amount: [{}]'.format(name, code, current, amount))
-                msg_text = msg_template.format(name, code_text, desc, current, 'lower', amount)
+                msg = {}
+                desc = {'STK':'stock price', 'FX':'rate', 'IDX':'index'}[types]
+                word = {'&lt': 'lower', '&gt': 'higher'}[operators]
+                msg_text = '<b>Hi {},\n{} {} is now {},\n{} than {}</b>'.format(name, code_text, desc, current, word, amount)
                 msg['text'] = msg_text
                 msg['chat_id'] = chat_id
                 msgs.append(msg)
+                delete_sql = 'DELETE FROM alerts WHERE fromid=? AND types=? AND code=? AND operators=?'
                 param = (from_id, types, code, operators)
                 self.db.execute(delete_sql, param)
                 if self.email_service:
                     subject = '{} {} notice to {}'.format(code_text, desc, name)
                     self.email_service.send_email(subject, msg_text)
-            elif operators=='&gt' and current > amount:
-                logger.info('name: [{}], code: [{}], current: [{}], amount: [{}]'.format(name, code, current, amount))
-                msg_text = msg_template.format(name, code_text, desc, current, 'higher', amount)
-                msg['text'] = msg_text
-                msg['chat_id'] = chat_id
-                msgs.append(msg)
-                param = (from_id, types, code, operators)
-                self.db.execute(delete_sql, param)
-                if self.email_service:
-                    subject = '{} {} notice to {}'.format(code_text, desc, name)
-                    self.email_service.send_email(subject, msg_text)
-
+                    
         if len(msgs)!=0:
             data['method'] = 'sendMultiMessage'
             data['msgs'] = msgs
@@ -571,21 +562,149 @@ class FxStock:
         headers = {'User-Agent':''}
         page = self.send_request(url,headers)
         soup = BeautifulSoup(page.content, 'html.parser')
-        company_ele = soup.find('h1',{'class':'D(ib) Fz(18px)'})
+        stock_info = {}
+
         price_ele = soup.find('span',{'class':'Trsdu(0.3s) Fw(b) Fz(36px) Mb(-4px) D(ib)'})
-        
-        change_ele = soup.find('span',{'class':'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($dataRed)'})
-        if change_ele is None:
-            change_ele = soup.find('span',{'class':'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($dataGreen)'})
-        if change_ele is None:
-            change_ele = soup.find('span',{'class':'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px)'})
-            
         if price_ele is None:
-            logger.error('yahoo US stock price is not available!')
-            return {}
-        else:       
-            company = company_ele.get_text(strip=True) if company_ele is not None else 'NA'
+            logger.error('yahoo finance US stock price is not available!')
+        else:
+            stock_info['price'] = price_ele.get_text(strip=True).replace(',','')
+
+        company_ele = soup.find('h1',{'class':'D(ib) Fz(18px)'})
+        if company_ele is None:
+            logger.error('yahoo finance US company name is not available!')
+        else:
+            company = company_ele.get_text(strip=True)
             company = company[:company.find('(')].strip()
-            price = price_ele.get_text(strip=True).replace(',','')
-            change = change_ele.get_text(strip=True) if change_ele is not None else 'NA'
-            return {'company':company, 'price':price, 'change':change}            
+            stock_info['company'] = company
+
+        change_ele = soup.find_all('span',{'class':['Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($dataRed)',
+                                                    'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($dataGreen)',
+                                                    'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px)']})
+        if change_ele is None or len(change_ele)==0:
+            logger.error('yahoo finance US stock change is not available!')
+        else:
+            stock_info['change'] = change_ele[0].get_text(strip=True)
+        
+        return stock_info           
+
+    #ma command
+    def get_ma(self, data):
+        data['method'] = 'sendMessage'
+        code = self.get_ma_code(data)
+        if code!='':
+            ma_info = self.get_ma_info(code)
+            if len(ma_info)==0:
+                data['text'] = 'Please enter a valid stock code.'
+            else:
+                data['text'] =  ('<b>10-Day Moving Average: {}\n'
+                                 '50-Day Moving Average: {}\n'
+                                 '200-Day Moving Average: {}</b>').format(ma_info.get('10','NA'),
+                                                                          ma_info.get('50','NA'),
+                                                                          ma_info.get('200','NA'))
+   
+    def get_ma_code(self, data):
+        args = data['args'].strip()
+        if len(args)==0 or len(args)>5:
+            data['text'] = 'Please use the following format.\ne.g. /ma 2888\ne.g. /ma 02888'
+            return ''
+        elif not(args.isnumeric()) or int(args)==0:
+            data['text'] = '"{}" is not a valid stock code.'.format(args)
+            return ''        
+        return args
+    
+    def get_ma_info(self, code):
+        url = 'https://finance.now.com/stock/?s={}'.format(code.zfill(5))
+        url_2 = 'https://finance.yahoo.com/quote/{0}.HK/key-statistics?p={0}.HK'.format(code[1:] if len(code)>4 else code.zfill(4))
+        headers = {'User-Agent':''}
+        page = self.send_request(url,headers)
+        soup = BeautifulSoup(page.content, 'html.parser')
+        page_2 = self.send_request(url_2,headers)
+        soup_2 = BeautifulSoup(page_2.content, 'html.parser')        
+        try:
+            ma_10 = soup.find('td',text='10天平均').find_next('td').get_text(strip=True).replace(',','')
+            ma_50 = soup.find('td',text='50天平均').find_next('td').get_text(strip=True).replace(',','')
+            ma_200 = soup_2.find('span',text='200-Day Moving Average').parent.find_next('td').get_text(strip=True).replace(',','')
+        except AttributeError as ae:
+            logger.error('now finance moving average is not available!')
+            logger.exception('fxstock get_ma_info AttributeError: '+str(ae))
+            return {}
+        return {'10':ma_10, '50':ma_50, '200':ma_200}
+    
+    #rsi command
+    def get_rsi(self, data):
+        data['method'] = 'sendMessage'
+        code = self.get_rsi_code(data)
+        if code!='':
+            rsi_info = self.get_rsi_info(code)
+            if len(rsi_info)==0:
+                data['text'] = 'Please enter a valid stock code.'
+            else:
+                data['text'] =  ('<b>RSI: {}</b>').format(rsi_info.get('rsi','NA'))
+   
+    def get_rsi_code(self, data):
+        args = data['args'].strip()
+        if len(args)==0 or len(args)>4:
+            data['text'] = 'Please use the following format.\ne.g. /rsi 5\ne.g. /rsi 0005'
+            return ''
+        elif not(args.isnumeric()) or int(args)==0:
+            data['text'] = '"{}" is not a valid stock code.'.format(args)
+            return ''        
+        return args
+    
+    def get_rsi_info(self, code):
+        #url = 'https://finance.yahoo.com/quote/AAPL/history?p=AAPL'
+        #url = 'https://finance.yahoo.com/quote/%5EHSI/history?p=%5EHSI'
+        url = 'https://finance.yahoo.com/quote/{0}.HK/history?p={0}.HK'.format(code.zfill(4))
+        headers = {'User-Agent':''}
+        page = self.send_request(url,headers)
+        soup = BeautifulSoup(page.content, 'html.parser')
+        prices = []
+        try:
+            trs = soup.find_all('tr',{'class':'BdT Bdc($seperatorColor) Ta(end) Fz(s) Whs(nw)'})
+            i = 0
+            while len(prices)<90:
+                tds = trs[i].find_all('td')
+                i += 1
+                if len(tds)<5:
+                    continue
+                else:
+                    span = tds[4].find('span')
+                    if span is None:
+                        continue
+                    else:
+                        price = span.get_text(strip=True).replace(',','')
+                        prices.append(price)
+                    
+            prices.reverse()
+            
+            rsi = self.rsi_func(prices)
+        except AttributeError as ae:
+            logger.error('yahoo finance relative strength index is not available!')
+            logger.exception('fxstock get_rsi AttributeError: '+str(ae))
+            return {}
+        return {'rsi': rsi}
+
+    def rsi_func(self, prices, n=14):
+        deltas = [float(j)-float(i) for i, j in zip(prices[:-1], prices[1:])]
+        seed = deltas[:n+1]
+        up = sum([i for i in seed if i>0])/n
+        down = sum([-i for i in seed if i<0])/n
+        rs = up/down
+        
+        for i in range(n, len(prices)):
+            delta = deltas[i-1]
+            if delta > 0:
+                upval = delta
+                downval = 0.
+            else:
+                upval = 0.
+                downval = -delta
+
+            up = (up*(n-1)+upval)/n
+            down = (down*(n-1)+downval)/n
+            rs = up/down
+        rsi = 100. - 100./(1.+rs)
+        return round(rsi, 3)
+
+    
