@@ -1,10 +1,9 @@
 import datetime
-import json
 import logging
+import requests
 import sched
 import sys
 import time
-from urllib import request, parse
 
 from fxstock import FxStock
 from helper import Helper
@@ -111,13 +110,10 @@ class Bot:
             logger.exception('main execute Exception: '+str(e))
         
     def send_request(self, url, params=None):
-        data = None if params is None else parse.urlencode(params).encode()
-        req = request.Request(url, data=data)
         try:
-            with request.urlopen(req) as resp:
-                return json.loads(resp.read())
+            resp = requests.post(url, data=params)
+            return resp.json()
         except Exception as e:
-            #handle urllib.error.HTTPError: HTTP Error 500: Internal Server Error
             logger.error('main send_request Exception: '+str(e))
             return {}
         
@@ -130,6 +126,9 @@ class Bot:
     def send_message(self, data):
         method = 'sendMessage'
         params = {'chat_id': data['chat_id'], 'text': data['text'], 'parse_mode': 'HTML'}
+        message_id = data.get('message_id',-1)
+        if message_id>0:
+            params['reply_to_message_id'] = message_id
         self.send_request(self.api_url + method, params)
 
     def send_photo(self, data):
@@ -141,6 +140,8 @@ class Bot:
         message_obj = json_obj.get('message', json_obj.get('edited_message',{}))
         message_text = message_obj.get('text','')
         chat_id = message_obj.get('chat',{}).get('id','')
+        chat_type = message_obj.get('chat',{}).get('type','private')
+        message_id = -1 if chat_type=='private' else message_obj.get('message_id',-1)
             
         if 'from' in message_obj:
             from_id = message_obj['from'].get('id','')
@@ -155,6 +156,7 @@ class Bot:
                 'chat_id': chat_id,
                 'from_id': from_id,
                 'message_text': message_text,
+                'message_id': message_id,
                 'sender_name': sender_name.strip()}
     
     def send_cmd_list(self, data):
