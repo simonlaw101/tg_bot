@@ -90,8 +90,8 @@ class FxStock:
             company = company[:company.find('(')].strip()
             stock_info['company'] = company
 
-        change_ele = soup.find_all('span',{'class':['Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($dataRed)',
-                                                    'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($dataGreen)',
+        change_ele = soup.find_all('span',{'class':['Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($negativeColor)',
+                                                    'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($positiveColor)',
                                                     'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px)']})
         if change_ele is None or len(change_ele)==0:
             logger.error('yahoo finance change is not available!')
@@ -175,8 +175,8 @@ class FxStock:
             name = name[:name.find('(')].strip()
             idx_info['name'] = name
         
-        change_ele = soup.find_all('span',{'class':['Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($dataRed)',
-                                                    'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($dataGreen)',
+        change_ele = soup.find_all('span',{'class':['Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($negativeColor)',
+                                                    'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($positiveColor)',
                                                     'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px)']})
         if change_ele is None or len(change_ele)==0:
             logger.error('yahoo finance index change is not available!')
@@ -578,8 +578,8 @@ class FxStock:
             company = company[:company.find('(')].strip()
             stock_info['company'] = company
 
-        change_ele = soup.find_all('span',{'class':['Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($dataRed)',
-                                                    'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($dataGreen)',
+        change_ele = soup.find_all('span',{'class':['Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($negativeColor)',
+                                                    'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($positiveColor)',
                                                     'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px)']})
         if change_ele is None or len(change_ele)==0:
             logger.error('yahoo finance US stock change is not available!')
