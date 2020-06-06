@@ -33,6 +33,9 @@ token = 'YOUR_TOKEN'
 python3 main.py
 ```
 To stop the script, press Ctrl+C
+
+### 4. Deploy to AWS EC2 (Optional)
+steps: https://medium.com/@simonlaw_9918/stock-tracking-telegram-bot-21be907c70ef
 <br/><br/><br/><br/>
 
 
