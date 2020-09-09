@@ -77,13 +77,13 @@ class FxStock:
         stock_info = {}
 
         price_ele = soup.find('span',{'class':'Trsdu(0.3s) Fw(b) Fz(36px) Mb(-4px) D(ib)'})
-        if price_ele is None:
+        if price_ele is None or price_ele.get_text(strip=True)=='':
             logger.error('yahoo finance stock price is not available!')
         else:
             stock_info['price'] = price_ele.get_text(strip=True).replace(',','')
 
         company_ele = soup.find('h1',{'class':'D(ib) Fz(18px)'})
-        if company_ele is None:
+        if company_ele is None or company_ele.get_text(strip=True)=='':
             logger.error('yahoo finance company name is not available!')
         else:
             company = company_ele.get_text(strip=True)
@@ -93,7 +93,7 @@ class FxStock:
         change_ele = soup.find_all('span',{'class':['Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($negativeColor)',
                                                     'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($positiveColor)',
                                                     'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px)']})
-        if change_ele is None or len(change_ele)==0:
+        if change_ele is None or len(change_ele)==0 or change_ele[0].get_text(strip=True)=='':
             logger.error('yahoo finance change is not available!')
         else:
             stock_info['change'] = change_ele[0].get_text(strip=True)
@@ -162,13 +162,13 @@ class FxStock:
         idx_info = {}
 
         price_ele = soup.find('span',{'class':'Trsdu(0.3s) Fw(b) Fz(36px) Mb(-4px) D(ib)'})
-        if price_ele is None:
+        if price_ele is None or price_ele.get_text(strip=True)=='':
             logger.error('yahoo finance index is not available!')
         else:
             idx_info['price'] = price_ele.get_text(strip=True).replace(',','')
 
         name_ele = soup.find('h1',{'class':'D(ib) Fz(18px)'})
-        if name_ele is None:
+        if name_ele is None or name_ele.get_text(strip=True)=='':
             logger.error('yahoo finance index name is not available!')
         else:
             name = name_ele.get_text(strip=True)
@@ -178,7 +178,7 @@ class FxStock:
         change_ele = soup.find_all('span',{'class':['Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($negativeColor)',
                                                     'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($positiveColor)',
                                                     'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px)']})
-        if change_ele is None or len(change_ele)==0:
+        if change_ele is None or len(change_ele)==0 or change_ele[0].get_text(strip=True)=='':
             logger.error('yahoo finance index change is not available!')
         else:
             idx_info['change'] = change_ele[0].get_text(strip=True)
@@ -511,7 +511,7 @@ class FxStock:
                 current = float(self.get_idx_info(code).get('price',-1))
                 code_text = code_text.replace('%5E','')
                 
-            if current<0:
+            if current<=0:
                 continue
             elif (operators=='&lt' and current < amount) or (operators=='&gt' and current > amount):
                 logger.info('name: [{}], code: [{}], current: [{}], amount: [{}]'.format(name, code, current, amount))
