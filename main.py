@@ -1,12 +1,12 @@
 import datetime
 import logging
-import requests
 import sched
 import sys
 import time
 
 from fxstock import FxStock
 from helper import Helper
+from service import HttpService
 
 #Setting
 token = 'YOUR_TOKEN'
@@ -108,19 +108,11 @@ class Bot:
                     self.send_photo(data)
         except Exception as e:
             logger.exception('main execute Exception: '+str(e))
-        
-    def send_request(self, url, params=None):
-        try:
-            resp = requests.post(url, data=params)
-            return resp.json()
-        except Exception as e:
-            logger.error('main send_request Exception: '+str(e))
-            return {}
-        
+
     def get_updates(self, offset=0, timeout=30):
         method = 'getUpdates'
         params = {'timeout': timeout, 'offset': offset}
-        json_resp = self.send_request(self.api_url + method, params)
+        json_resp = HttpService.post_json(self.api_url + method, params)
         return json_resp.get('result',[])
 
     def send_message(self, data):
@@ -129,12 +121,12 @@ class Bot:
         message_id = data.get('message_id',-1)
         if message_id>0:
             params['reply_to_message_id'] = message_id
-        self.send_request(self.api_url + method, params)
+        HttpService.post_json(self.api_url + method, params)
 
     def send_photo(self, data):
         method = 'sendPhoto'
         params = {'chat_id': data['chat_id'], 'photo': data['image_url'], 'parse_mode': 'HTML'}
-        self.send_request(self.api_url + method, params)
+        HttpService.post_json(self.api_url + method, params)
         
     def get_data(self, json_obj):
         message_obj = json_obj.get('message', json_obj.get('edited_message',{}))

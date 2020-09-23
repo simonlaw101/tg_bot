@@ -4,6 +4,8 @@ from bs4 import BeautifulSoup
 
 from db import DB
 from myemail import Email
+from service import HttpService
+from util import JsonUtil, NumberUtil
 
 logger = logging.getLogger('FxStock')
 
@@ -72,7 +74,7 @@ class FxStock:
     def get_stock_info(self, code):
         url = 'https://finance.yahoo.com/quote/{}.HK/'.format(code.zfill(4))
         headers = {'User-Agent':''}
-        page = self.send_request(url,headers)
+        page = HttpService.get(url, headers)
         soup = BeautifulSoup(page.content, 'html.parser')
         stock_info = {}
 
@@ -130,7 +132,7 @@ class FxStock:
 
     def get_xrates(self, ccy, ccy2, amount):
         url = 'https://www.x-rates.com/calculator/?from={}&to={}&amount={}'.format(ccy.upper(),ccy2.upper(),amount)
-        page = self.send_request(url)
+        page = HttpService.get(url)
         soup = BeautifulSoup(page.content, 'html.parser')
         ele = soup.find('span',{'class':'ccOutputTrail'})
         if ele is None:
@@ -157,7 +159,7 @@ class FxStock:
     def get_idx_info(self, code):
         url = 'https://finance.yahoo.com/quote/{0}?p={0}'.format(code)
         headers = {'User-Agent':''}
-        page = self.send_request(url,headers)
+        page = HttpService.get(url, headers)
         soup = BeautifulSoup(page.content, 'html.parser')
         idx_info = {}
 
@@ -311,7 +313,7 @@ class FxStock:
         if amount.strip()=='':
             data['text'] = 'Please enter an amount.'
             return {}
-        elif not(self.is_float(amount)) or float(amount)<=0:
+        elif not(NumberUtil.is_float(amount)) or float(amount)<=0:
             data['text'] = '"{}" is not a valid amount. Please retry.'.format(amount)
             return {}
         elif len(str(float(amount)).replace('.',''))>9:
@@ -322,13 +324,6 @@ class FxStock:
                 'code': code,
                 'operators': operators,
                 'amount': str(float(amount))}
-    
-    def is_float(self, s):
-        try: 
-            float(s)
-            return True
-        except ValueError:
-            return False
 
     def set_alert(self, data, param):
         sql = 'REPLACE INTO alerts(fromid,name,types,code,operators,amount,chatid) VALUES(?,?,?,?,?,?,?)'
@@ -560,7 +555,7 @@ class FxStock:
     def get_us_stock_info(self, code):
         url = 'https://finance.yahoo.com/quote/{}/'.format(code)
         headers = {'User-Agent':''}
-        page = self.send_request(url,headers)
+        page = HttpService.get(url, headers)
         soup = BeautifulSoup(page.content, 'html.parser')
         stock_info = {}
 
@@ -617,9 +612,9 @@ class FxStock:
         url = 'https://finance.now.com/stock/?s={}'.format(code.zfill(5))
         url_2 = 'https://finance.yahoo.com/quote/{0}.HK/key-statistics?p={0}.HK'.format(code[1:] if len(code)>4 else code.zfill(4))
         headers = {'User-Agent':''}
-        page = self.send_request(url,headers)
+        page = HttpService.get(url, headers)
         soup = BeautifulSoup(page.content, 'html.parser')
-        page_2 = self.send_request(url_2,headers)
+        page_2 = HttpService.get(url_2, headers)
         soup_2 = BeautifulSoup(page_2.content, 'html.parser')        
         try:
             ma_10 = soup.find('td',text='10天平均').find_next('td').get_text(strip=True).replace(',','')
@@ -657,7 +652,7 @@ class FxStock:
         #url = 'https://finance.yahoo.com/quote/%5EHSI/history?p=%5EHSI'
         url = 'https://finance.yahoo.com/quote/{0}.HK/history?p={0}.HK'.format(code.zfill(4))
         headers = {'User-Agent':''}
-        page = self.send_request(url,headers)
+        page = HttpService.get(url, headers)
         soup = BeautifulSoup(page.content, 'html.parser')
         prices = []
         try:
@@ -706,5 +701,4 @@ class FxStock:
             rs = up/down
         rsi = 100. - 100./(1.+rs)
         return round(rsi, 3)
-
     
