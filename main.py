@@ -4,6 +4,8 @@ import sched
 import sys
 import time
 
+from logging.handlers import TimedRotatingFileHandler
+
 from fxstock import FxStock
 from helper import Helper
 from service import HttpService
@@ -17,7 +19,7 @@ modules = [FxStock(enabled=True, send_email=False),
 logger = logging.getLogger('FxStock')
 logger.setLevel(logging.DEBUG)
 formatter = logging.Formatter('[%(asctime)s] %(levelname)s [%(module)s.%(funcName)s:%(lineno)d] %(message)s')
-file_handler = logging.FileHandler('log/fxstock.log')
+file_handler = TimedRotatingFileHandler('log/fxstock.log', when='d', interval=30, backupCount=3)
 file_handler.setFormatter(formatter)
 stream_handler = logging.StreamHandler()
 stream_handler.setFormatter(formatter)
