@@ -7,6 +7,7 @@ logger = logging.getLogger('FxStock')
 class TgService:
     TOKEN = 'YOUR_TOKEN'
     API_URL = "https://api.telegram.org/bot{}/".format(TOKEN)
+    FILE_URL = "https://api.telegram.org/file/bot{}/".format(TOKEN)
 
     @staticmethod
     def get_updates(offset=0, timeout=30):
@@ -18,6 +19,12 @@ class TgService:
     def get_data(json_obj):
         message_obj = json_obj.get('message', json_obj.get('edited_message', {}))
         message_text = message_obj.get('text', '')
+        caption = message_obj.get('caption', '')
+        file_url = ''
+        if caption.startswith('/ocr'):
+            message_text = caption
+            file_id = TgService.get_file_id(message_obj)
+            file_url = '' if file_id == '' else TgService.get_file_url(file_id)
         chat_id = message_obj.get('chat', {}).get('id', '')
         chat_type = message_obj.get('chat', {}).get('type', 'private')
         message_id = -1 if chat_type == 'private' else message_obj.get('message_id', -1)
@@ -36,6 +43,7 @@ class TgService:
                 'from_id': from_id,
                 'message_text': message_text,
                 'message_id': message_id,
+                'file_url': file_url,
                 'sender_name': sender_name.strip()}
 
     @staticmethod
@@ -50,6 +58,25 @@ class TgService:
     def send_photo(data):
         params = {'chat_id': data['chat_id'], 'photo': data['image_url'], 'parse_mode': 'HTML'}
         HttpService.post_json(TgService.API_URL + 'sendPhoto', params)
+
+    @staticmethod
+    def get_file_id(message_obj):
+        photo_list = message_obj.get('photo', [])
+        document = message_obj.get('document', {})
+        if len(photo_list) > 0:
+            return photo_list[-1].get('file_id', '')
+        elif len(document) > 0:
+            return document.get('file_id', '')
+        return ''
+
+    @staticmethod
+    def get_file_url(file_id):
+        params = {'file_id': file_id}
+        json_resp = HttpService.post_json(TgService.API_URL + 'getFile', params)
+        file_path = json_resp.get('result', {}).get('file_path', '')
+        if file_path == '':
+            return ''
+        return TgService.FILE_URL + file_path
 
 
 class HttpService:

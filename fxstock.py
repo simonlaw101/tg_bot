@@ -2,6 +2,7 @@ import logging
 from bs4 import BeautifulSoup
 
 from db import DB
+from constant import Constant
 from myemail import Email
 from service import HttpService
 from util import NumberUtil
@@ -34,6 +35,16 @@ class FxStock:
                      'us': 'get us stock price',
                      'ma': 'get stock moving average',
                      'rsi': 'get stock relative strength index'}
+        self.examples = {'s': Constant.S_EXAMPLE,
+                         'c': Constant.C_EXAMPLE,
+                         'i': Constant.I_EXAMPLE,
+                         'alert': Constant.ALERT_EXAMPLE,
+                         'reset': Constant.RESET_EXAMPLE,
+                         'ccy': Constant.CCY_EXAMPLE,
+                         'idx': Constant.IDX_EXAMPLE,
+                         'us': Constant.US_EXAMPLE,
+                         'ma': Constant.MA_EXAMPLE,
+                         'rsi': Constant.RSI_EXAMPLE}
         self.db = DB()
         self.ccy_dct = self.get_ccy_dct()
         self.ccy_lst = ''.join(['{} - {}\n'.format(k, v) for k, v in self.ccy_dct.items()])

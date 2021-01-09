@@ -7,13 +7,13 @@ import time
 from logging.handlers import TimedRotatingFileHandler
 
 from fxstock import FxStock
-from helper import Helper
+from ocr import Ocr
 from service import TgService
 
 # Setting
 refresh_time = 0.2
 modules = [FxStock(enabled=True, send_email=False),
-           Helper(enabled=True)]
+           Ocr(enabled=False)]
 
 logger = logging.getLogger('FxStock')
 logger.setLevel(logging.DEBUG)
@@ -32,11 +32,15 @@ class Bot:
         self.check_freq = 10
         self.scheduler = sched.scheduler(time.time, time.sleep)
         self.cmds = {'start': self.send_cmd_list,
+                     'help': self.help,
+                     'h': self.help,
                      'freq': self.set_freq}
         self.desc = ''
+        self.examples = {}
         for module in modules:
             if module.enabled:
                 self.cmds.update(module.cmds)
+                self.examples.update(module.examples)
                 self.desc += ''.join(['/{} - {}\n'.format(k, v) for k, v in module.desc.items()])
         
         self.start_time = self.get_timestamp(0, 50, 0)  # 00:50
@@ -133,7 +137,17 @@ class Bot:
             data['method'] = 'sendMessage'
             data['text'] = '"{}" is not a valid frequency. We only support 2, 10 and 60'.format(args)
 
-            
+    def help(self, data):
+        data['method'] = 'sendMessage'
+        args = data['args'].strip().split()
+        if len(args) == 0:
+            data['text'] = '\n\n\n'.join(self.examples.values())
+        else:
+            dct = {k: v for k, v in self.examples.items() if k in args}
+            dct = self.examples if len(dct) == 0 else dct
+            data['text'] = '\n\n\n'.join(dct.values())
+
+
 def main():
     bot = Bot(refresh_time)
     bot.run()
