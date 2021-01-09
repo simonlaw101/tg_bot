@@ -66,3 +66,6 @@ https://www.youtube.com/watch?v=4gGztYfp3ck
 6. Random pic<br/>
 https://www.freecodecamp.org/news/learn-to-build-your-first-bot-in-telegram-with-python-4c99526765e4/
 
+7. Free OCR API<br/>
+https://ocr.space/OCRAPI
+   
