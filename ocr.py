@@ -43,7 +43,6 @@ class Ocr:
             data['text'] = self.get_image_text(file_url, language, self.supported_file_type[file_extension])
 
     def post_ocr_space_url(self, url, language='eng', file_type='JPG'):
-        logger.info('language: ' + language)
         params = {
             'apikey': self.api_key,
             'url': url,
@@ -62,4 +61,5 @@ class Ocr:
                 if text == '':
                     return 'No text found in the image!'
                 return text
+        logger.error('ocr get_image_text: Error in processing image!')
         return 'Error in processing image!'
