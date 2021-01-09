@@ -5,6 +5,7 @@ from sqlite3 import Error
 
 logger = logging.getLogger('FxStock')
 
+
 class DB:
     def __init__(self):
         self.db_file = 'db.db'
@@ -34,9 +35,7 @@ class DB:
             elif sql.upper().startswith('INSERT'):
                 con.commit()
                 return cursor.lastrowid
-            elif sql.upper().startswith('UPDATE') or\
-                 sql.upper().startswith('DELETE') or\
-                 sql.upper().startswith('REPLACE'):
+            elif sql.upper().startswith(('UPDATE', 'DELETE', 'REPLACE')):
                 con.commit()
         except Error as e:
             logger.exception('db execute Error: '+str(e))
@@ -85,8 +84,7 @@ class DB:
         try:
             con = self.get_connection(self.db_file)
             cursor = con.cursor()
-            
-            headers = []
+
             with open(file_name, 'r') as csv_file:
                 headers = csv_file.readline().split(',')
                             
@@ -94,7 +92,7 @@ class DB:
                 dict_reader = csv.DictReader(csv_file)
                 params = [tuple([row[h] for h in headers]) for row in dict_reader]
 
-            sql = 'INSERT INTO {}({}) VALUES ({})'.format(table_name, ','.join(headers), ','.join(['?' for i in range(len(headers))]))
+            sql = 'INSERT INTO {}({}) VALUES ({})'.format(table_name, ','.join(headers), ','.join(['?']*len(headers)))
             cursor.executemany(sql, params)
             con.commit()
             
@@ -108,5 +106,3 @@ class DB:
             cursor.close()
         if con:
             con.close()
-
-            

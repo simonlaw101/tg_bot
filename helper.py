@@ -1,15 +1,15 @@
 class Helper:
     def __init__(self, enabled=True):
         self.enabled = enabled
-        self.cmds = {'help':self.help,
-                     'h':self.help}
+        self.cmds = {'help': self.help,
+                     'h': self.help}
         self.desc = {}
-        
+
         stk_example = ('/s CODE\n'
-                        'example 1: get stock price of HSBC\n'
-                        'e.g. /s 5\n'
-                        'e.g. /s 0005')
-        
+                       'example 1: get stock price of HSBC\n'
+                       'e.g. /s 5\n'
+                       'e.g. /s 0005')
+
         fx_example = ('/c CCY [to CCY]\n'
                       'example 1: get exchange rate of HKD to CNY\n'
                       'e.g. /c hkd to cny\n\n'
@@ -24,7 +24,7 @@ class Helper:
                      'e.g. /i\n'
                      'e.g. /i hsi\n\n'
                      '(if no code provided, get Hang Seng Index by default)')
-        
+
         alert_example = ('/alert CODE [OPERATOR] AMT\n'
                          '/alert CCY [to CCY] [OPERATOR] AMT\n'
                          '/alert IDX [OPERATOR] AMT\n'
@@ -44,7 +44,7 @@ class Helper:
                          '/alert\n'
                          'example 1: view all alerts set\n'
                          'e.g. /alert')
-        
+
         reset_example = ('/reset CODE\n'
                          '/reset CCY [to CCY]\n'
                          '/reset IDX\n'
@@ -73,19 +73,19 @@ class Helper:
                        'e.g. /idx')
 
         us_example = ('/us CODE\n'
-                       'example 1: search IBM US stock price\n'
-                       'e.g. /us ibm')
+                      'example 1: search IBM US stock price\n'
+                      'e.g. /us ibm')
 
         ma_example = ('/ma CODE\n'
-                       'example 1: search 2888 stock moving average\n'
-                       'e.g. /ma 2888\n'
-                       'e.g. /ma 02888')
-        
+                      'example 1: search 2888 stock moving average\n'
+                      'e.g. /ma 2888\n'
+                      'e.g. /ma 02888')
+
         rsi_example = ('/rsi CODE\n'
                        'example 1: search HSBC stock relative strength index\n'
                        'e.g. /rsi 5\n'
                        'e.g. /rsi 0005')
-        
+
         self.examples = {'s': stk_example,
                          'c': fx_example,
                          'i': i_example,
@@ -100,9 +100,9 @@ class Helper:
     def help(self, data):
         data['method'] = 'sendMessage'
         args = data['args'].strip().split()
-        if len(args)==0:
+        if len(args) == 0:
             data['text'] = '\n\n\n'.join(self.examples.values())
         else:
-            dct = dict(filter(lambda x: x[0] in args, self.examples.items()))
-            dct = self.examples if len(dct)==0 else dct
+            dct = {k: v for k, v in self.examples.items() if k in args}
+            dct = self.examples if len(dct) == 0 else dct
             data['text'] = '\n\n\n'.join(dct.values())

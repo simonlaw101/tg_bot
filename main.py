@@ -8,10 +8,9 @@ from logging.handlers import TimedRotatingFileHandler
 
 from fxstock import FxStock
 from helper import Helper
-from service import HttpService
+from service import TgService
 
-#Setting
-token = 'YOUR_TOKEN'
+# Setting
 refresh_time = 0.2
 modules = [FxStock(enabled=True, send_email=False),
            Helper(enabled=True)]
@@ -28,21 +27,20 @@ logger.addHandler(stream_handler)
 
 
 class Bot:
-    def __init__(self, token, refresh_time=0.2):
-        self.api_url = "https://api.telegram.org/bot{}/".format(token)
-        self.refresh_time = refresh_time
+    def __init__(self, refresh=0.2):
+        self.refresh_time = refresh
         self.check_freq = 10
         self.scheduler = sched.scheduler(time.time, time.sleep)
-        self.cmds = {'start':self.send_cmd_list,
-                     'freq':self.set_freq}
+        self.cmds = {'start': self.send_cmd_list,
+                     'freq': self.set_freq}
         self.desc = ''
         for module in modules:
             if module.enabled:
                 self.cmds.update(module.cmds)
-                self.desc += ''.join(['/{} - {}\n'.format(k,v) for k,v in module.desc.items()])
+                self.desc += ''.join(['/{} - {}\n'.format(k, v) for k, v in module.desc.items()])
         
-        self.start_time = self.get_timestamp(0, 50, 0)  #00:50
-        self.end_time = self.get_timestamp(8, 0, 0)     #08:00
+        self.start_time = self.get_timestamp(0, 50, 0)  # 00:50
+        self.end_time = self.get_timestamp(8, 0, 0)     # 08:00
 
     def get_timestamp(self, h, m, s):
         now = datetime.datetime.now()
@@ -55,16 +53,16 @@ class Bot:
         logger.info('Bot is running...')
         self.scheduler.enter(self.refresh_time, 0, self.check_msg)
         self.scheduler.enter(self.check_freq*60, 0, self.check_alert)
-        #self.scheduler.enterabs(self.start_time, 0, self.start_trade)
-        #self.scheduler.enterabs(self.end_time, 0, self.end_trade)
+        # self.scheduler.enterabs(self.start_time, 0, self.start_trade)
+        # self.scheduler.enterabs(self.end_time, 0, self.end_trade)
         self.scheduler.run()
 
     def check_msg(self, new_offset=0):
-        all_updates = self.get_updates(new_offset)
+        all_updates = TgService.get_updates(new_offset)
         
         for current_update in all_updates:
             
-            data = self.get_data(current_update)
+            data = TgService.get_data(current_update)
             message_text = data['message_text']
             
             if message_text.startswith('/'):
@@ -84,12 +82,12 @@ class Bot:
         self.scheduler.enter(self.check_freq*60, 0, self.check_alert)
 
     def start_trade(self):
-        #self.execute('ma', {'args':'CODE','chat_id':'CHAT_ID'})   #health check
+        # self.execute('ma', {'args': 'CODE', 'chat_id': 'CHAT_ID'})   # health check
         self.execute('freq', {'args':'-2'})
         self.scheduler.enter(60*60*24, 0, self.start_trade)
         
     def end_trade(self):
-        self.execute('freq', {'args':'-10'})
+        self.execute('freq', {'args': '-10'})
         self.scheduler.enter(60*60*24, 0, self.end_trade)
         
     def execute(self, cmd, data):
@@ -97,78 +95,37 @@ class Bot:
             if cmd in self.cmds.keys():
                 logger.info('command: [{}]'.format(cmd))
 
-                #self.send_maint_msg(data)  #maintenance
+                # self.send_maint_msg(data)  #maintenance
                 self.cmds[cmd](data)
                 
-                if data.get('method')=='sendMessage':
-                    self.send_message(data)
-                elif data.get('method')=='sendMultiMessage':
-                    msgs = data.get('msgs',{})
+                if data.get('method') == 'sendMessage':
+                    TgService.send_message(data)
+                elif data.get('method') == 'sendMultiMessage':
+                    msgs = data.get('msgs', {})
                     for msg in msgs:
-                        self.send_message(msg)
-                elif data.get('method')=='sendPhoto':
-                    self.send_photo(data)
+                        TgService.send_message(msg)
+                elif data.get('method') == 'sendPhoto':
+                    TgService.send_photo(data)
         except Exception as e:
             logger.exception('main execute Exception: '+str(e))
 
-    def get_updates(self, offset=0, timeout=30):
-        method = 'getUpdates'
-        params = {'timeout': timeout, 'offset': offset}
-        json_resp = HttpService.post_json(self.api_url + method, params)
-        return json_resp.get('result',[])
-
-    def send_message(self, data):
-        method = 'sendMessage'
-        params = {'chat_id': data['chat_id'], 'text': data['text'], 'parse_mode': 'HTML'}
-        message_id = data.get('message_id',-1)
-        if message_id>0:
-            params['reply_to_message_id'] = message_id
-        HttpService.post_json(self.api_url + method, params)
-
-    def send_photo(self, data):
-        method = 'sendPhoto'
-        params = {'chat_id': data['chat_id'], 'photo': data['image_url'], 'parse_mode': 'HTML'}
-        HttpService.post_json(self.api_url + method, params)
-        
-    def get_data(self, json_obj):
-        message_obj = json_obj.get('message', json_obj.get('edited_message',{}))
-        message_text = message_obj.get('text','')
-        chat_id = message_obj.get('chat',{}).get('id','')
-        chat_type = message_obj.get('chat',{}).get('type','private')
-        message_id = -1 if chat_type=='private' else message_obj.get('message_id',-1)
-            
-        if 'from' in message_obj:
-            from_id = message_obj['from'].get('id','')
-            first_name = message_obj['from'].get('first_name','')
-            last_name = message_obj['from'].get('last_name','')
-            sender_name = first_name+' '+last_name
-        else:
-            from_id = ''
-            sender_name = "unknown"
-
-        return {'update_id': json_obj['update_id'],
-                'chat_id': chat_id,
-                'from_id': from_id,
-                'message_text': message_text,
-                'message_id': message_id,
-                'sender_name': sender_name.strip()}
-    
     def send_cmd_list(self, data):
         data['method'] = 'sendMessage'
         data['text'] = self.desc
 
     def send_maint_msg(self, data):
         data['method'] = 'sendMessage'
-        data['text'] = 'The bot is currently unavailable due to maintenance.\nWe apologize for any inconvenience caused.'
+        data['text'] = ('The bot is currently unavailable due to maintenance.\n'
+                        'We apologize for any inconvenience caused.')
 
     def set_freq(self, data):
         args = data['args'].strip()
-        if args=='':
+        if args == '':
             data['method'] = 'sendMessage'
             data['text'] = 'Check frequency: {} mins'.format(self.check_freq)
-        elif args in ['-2','-10']:
+        elif args in ['-2', '-10']:
             self.check_freq = int(args)*-1
-        elif args in ['2','10','60']:
+        elif args in ['2', '10', '60']:
             self.check_freq = int(args)
             data['method'] = 'sendMessage'
             data['text'] = 'You have set the check frequency to {} mins'.format(args)
@@ -178,15 +135,14 @@ class Bot:
 
             
 def main():
-    bot = Bot(token, refresh_time)
+    bot = Bot(refresh_time)
     bot.run()
+
 
 if __name__ == '__main__':
     try:
         main()
-    except KeyboardInterrupt as e:
+    except KeyboardInterrupt as ke:
         logger.info('Bot is stopped.')
-        logger.debug('main KeyboardInterrupt Exception: '+str(e))
+        logger.debug('main KeyboardInterrupt Exception: '+str(ke))
         sys.exit(0)
-
-        

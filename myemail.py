@@ -7,6 +7,7 @@ from email.message import EmailMessage
 
 logger = logging.getLogger('FxStock')
 
+
 class Email:
     def __init__(self):
         self.sender = 'EMAIL_ADDRESS'
@@ -23,7 +24,7 @@ class Email:
             msg['From'] = self.sender
             msg['To'] = ', '.join(receivers)
 
-            #msg.set_content(content)
+            # msg.set_content(content)
             msg.add_alternative("""\
                                 <!DOCTYPE html>
                                 <html>
@@ -41,21 +42,21 @@ class Email:
                 smtp.send_message(msg)
                 
         except Exception as e:
-            logger.exception('myemail send_email Exception: ',str(e))
+            logger.exception('myemail send_email Exception: ', str(e))
     
     def is_email_valid(self, email):
         regex = '^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$'
-        return re.search(regex,email)
+        return re.search(regex, email)
     
     def add_attachment(self, msg):
-        files = ['test.pdf','test.jpg','test.png']
+        files = ['test.pdf', 'test.jpg', 'test.png']
 
         for file in files:
             try:
                 with open(self.file_path+file, 'rb') as f:
                     file_data = f.read()
                     file_name = os.path.basename(f.name)
-                    if file_name.lower().endswith('.jpg') or file_name.lower().endswith('.jpeg') or file_name.lower().endswith('.png'):
+                    if file_name.lower().endswith(('.jpg', '.jpeg', '.png')):
                         main_type = 'image'
                         file_type = imghdr.what(f.name)
                     elif file_name.lower().endswith('.pdf'):
@@ -63,5 +64,4 @@ class Email:
                         file_type = 'octet-sream'
                     msg.add_attachment(file_data, maintype=main_type, subtype=file_type, filename=file_name)
             except FileNotFoundError as e:
-                logger.exception('myemail add_attachment FileNotFoundError',str(e))
-
+                logger.exception('myemail add_attachment FileNotFoundError', str(e))
