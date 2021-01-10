@@ -546,7 +546,7 @@ class FxStock:
         if len(args) == 0:
             data['text'] = 'Please use the following format.\ne.g. /us amzn\ne.g. /us aapl'
             return ''
-        elif not (args.replace('.', '').isalnum()):
+        elif not (args.replace('.', '').replace('-', '').isalnum()):
             data['text'] = '"{}" is not a valid US stock code.'.format(args)
             return ''
         return args.upper()
