@@ -7,7 +7,7 @@ from ocr import Ocr
 
 # Setting
 modules = [FxStockLite(enabled=True),
-           Ocr(enabled=False)]
+           Ocr(enabled=True)]
 
 logger = logging.getLogger('FxStock')
 logger.setLevel(logging.DEBUG)
