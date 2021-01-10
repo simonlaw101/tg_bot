@@ -36,7 +36,6 @@ To stop the script, press Ctrl+C
 
 ### 4. Deploy to AWS EC2 (Optional)
 steps: https://medium.com/@simonlaw_9918/stock-tracking-telegram-bot-21be907c70ef
-<br/><br/><br/><br/>
 
 ### 5. Deploy to AWS Lambda + API Gateway (Optional)
 steps: https://simonlaw-9918.medium.com/stock-tracking-telegram-bot-2-8141f80c065c
