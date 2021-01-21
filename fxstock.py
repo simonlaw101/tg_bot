@@ -5,14 +5,13 @@ from db import DB
 from constant import Constant
 from myemail import Email
 from service import HttpService
-from util import NumberUtil
+from util import JsonUtil, NumberUtil
 
 logger = logging.getLogger('FxStock')
 
 
 class FxStock:
-    def __init__(self, enabled=True, send_email=False):
-        self.enabled = enabled
+    def __init__(self, lambda_mode=False, send_email=False):
         self.email_service = Email() if send_email else None
         self.cmds = {'s': self.get_stk,
                      'c': self.get_fx,
@@ -24,7 +23,8 @@ class FxStock:
                      'check': self.check,
                      'us': self.get_us_stk,
                      'ma': self.get_ma,
-                     'rsi': self.get_rsi}
+                     'rsi': self.get_rsi,
+                     'query': self.query}
         self.desc = {'s': 'get stock price',
                      'c': 'get currency exchange rate',
                      'i': 'get index',
@@ -45,15 +45,42 @@ class FxStock:
                          'us': Constant.US_EXAMPLE,
                          'ma': Constant.MA_EXAMPLE,
                          'rsi': Constant.RSI_EXAMPLE}
-        self.db = DB()
-        self.ccy_dct = self.get_ccy_dct()
-        self.ccy_lst = ''.join(['{} - {}\n'.format(k, v) for k, v in self.ccy_dct.items()])
-        self.idx_dct = self.get_idx_dct()
-        self.idx_dct_no_prefix = {k.replace('%5E', ''): v for k, v in self.idx_dct.items()}
-        self.idx_lst = ''.join(['{} - {}\n'.format(k, v) for k, v in self.idx_dct_no_prefix.items()])
+
+        if lambda_mode:
+            cmd_lst = ['s', 'c', 'i', 'ccy', 'idx', 'us', 'ma', 'rsi', 'query']
+            self.cmds = {cmd: self.cmds[cmd] for cmd in cmd_lst}
+            self.desc = {cmd: self.desc[cmd] for cmd in cmd_lst if cmd in self.desc}
+            self.examples = {cmd: self.examples[cmd] for cmd in cmd_lst if cmd in self.examples}
+        else:
+            self.db = DB()
+
+    # query command
+    def query(self, data):
+        data['method'] = 'answerInlineQuery'
+        args = data['args'].strip()
+        if 0 < len(args) < 5 and args.isnumeric() and int(args) > 0:
+            stock_info = self.get_stock_info(args)
+            if len(stock_info) != 0:
+                s = {i: stock_info.get(i, 'NA') for i in ['company', 'price', 'change']}
+                btn_lst = [{'text': 'View details', "callback_data": "/s " + args}]
+                data['results'] = [{
+                                        "type": "article",
+                                        "id": "unique",
+                                        "title": '{company}'.format(**s),
+                                        "description": '{price}    {change}'.format(**s),
+                                        "reply_markup": {"inline_keyboard": [btn_lst]},
+                                        "input_message_content": {
+                                            "parse_mode": "HTML",
+                                            "message_text": '<b><u>{company}</u>\n{price}    {change}</b>'.format(**s)
+                                        }
+                                    }]
 
     # s command
     def get_stk(self, data):
+        if data.get('callback_query_id', -1) != -1:
+            data['method'] = 'editMessageText'
+            data['text'] = self.get_stock_detail(data['args'])
+            return
         data['method'] = 'sendMessage'
         code = self.get_stock_code(data)
         if code != '':
@@ -64,10 +91,14 @@ class FxStock:
                 data['text'] = '<b><u>{}</u>\n{}    {}</b>'.format(stock_info.get('company', 'NA'),
                                                                    stock_info.get('price', 'NA'),
                                                                    stock_info.get('change', 'NA'))
+                btn_lst = [{'text': 'View details', "callback_data": "/s " + code}]
+                data['reply_markup'] = {"inline_keyboard": [btn_lst]}
 
     def get_stock_code(self, data):
         args = data['args'].strip()
-        if len(args) == 0 or len(args) > 4:
+        if len(args) == 0:
+            return '5'
+        elif len(args) > 4:
             data['text'] = 'Please use the following format.\ne.g. /s 5\ne.g. /s 0005'
             return ''
         elif not (args.isnumeric()) or int(args) == 0:
@@ -106,6 +137,75 @@ class FxStock:
 
         return stock_info
 
+    def get_stock_detail(self, code):
+        url = 'http://realtime-money18-cdn.on.cc/securityQuote/genStockDetailHKJSON.php'
+        json_resp = HttpService.post_json(url, {'stockcode': code.zfill(5)})
+
+        json_obj = JsonUtil.to_json_obj(json_resp)
+
+        change = json_obj.calculation.change
+        percent_change = json_obj.calculation.pctChange
+        json_obj.change = '+' + str(change) if change > 0 else str(change)
+        json_obj.pctChange = '+' + str(percent_change) if percent_change > 0 else str(percent_change)
+
+        json_obj.real.vol = NumberUtil.format_num(json_obj.real.vol)
+        json_obj.real.tvr = NumberUtil.format_num(json_obj.real.tvr)
+        json_obj.calculation.marketValue = NumberUtil.format_num(json_obj.calculation.marketValue)
+        json_obj.daily.issuedShare = NumberUtil.format_num(json_obj.daily.issuedShare)
+        json_obj.shortPut.Trade[0].Qty = NumberUtil.format_num(json_obj.shortPut.Trade[0].Qty)
+        json_obj.shortPut.Trade[0].Amount = NumberUtil.format_num(json_obj.shortPut.Trade[0].Amount)
+
+        np = float(json_obj.real.np) if NumberUtil.is_float(json_obj.real.np) else 0
+        eps = float(json_obj.daily.eps) if NumberUtil.is_float(json_obj.daily.eps) else 0
+        lot_size = float(json_obj.daily.lotSize) if NumberUtil.is_float(json_obj.daily.lotSize) else 0
+        dividend = float(json_obj.daily.dividend) if NumberUtil.is_float(json_obj.daily.dividend) else 0
+        json_obj.peRatio = 0 if eps == 0 else (np / eps)
+        json_obj.dividendYield = 0 if np == 0 else (dividend * 100 / np)
+        json_obj.minSubscriptionFee = np * lot_size
+        json_obj.daily.lotSize = int(lot_size)
+
+        qty_price = json_obj.bulkTrade.Trade[0].Transaction[0].Qty_price
+        json_obj.bulkTradeQty = '' if str(qty_price) == '' else qty_price.split('-')[0]
+        json_obj.bulkTradePrice = '' if str(qty_price) == '' else qty_price.split('-')[1]
+
+        return ('<b><u>{s.daily.nameChi}</u>\n'
+                '{s.real.np}    {s.change} ({s.pctChange}%)\n\n'
+                '開市價:　　　　{s.opening.openPrice}\n'
+                '最高價:　　　　{s.real.dyh}\n'
+                '最低價:　　　　{s.real.dyl}\n'
+                '前收市價:　　　{s.daily.preCPrice}\n'
+                '成交量:　　　　{s.real.vol}\n'
+                '成交金額:　　　{s.real.tvr}\n'
+                '市盈率:　　　　{s.peRatio:0.2f}倍\n'
+                '息率:　　　　　{s.dividendYield:0.2f}%\n'
+                '市值:　　　　　{s.calculation.marketValue}\n'
+                '發行股數:　　　{s.daily.issuedShare}\n'
+                '10日RSI:　　　 {s.daily.rsi10}\n'
+                '14日RSI:　　　 {s.daily.rsi14}\n'
+                '20日RSI:　　　 {s.daily.rsi20}\n'
+                '10日高:　　　   {s.daily.tenDayHigh}\n'
+                '1個月高:　　　 {s.daily.mthHigh}\n'
+                '52周高:　　　   {s.daily.wk52High}\n'
+                '10日低:　　　   {s.daily.tenDayLow}\n'
+                '1個月低:　　　 {s.daily.mthLow}\n'
+                '52周低:　　　   {s.daily.wk52Low}\n'
+                '10日平均價:　   {s.daily.ma10}\n'
+                '20日平均價:　   {s.daily.ma20}\n'
+                '50日平均價:　   {s.daily.ma50}\n'
+                '全年每股盈利:　{s.daily.eps}元\n'
+                '全年每股派息:　{s.daily.dividend}元\n'
+                '買賣差價:　　　{s.calculation.spread}\n'
+                '每手股數:　　　{s.daily.lotSize}股\n'
+                '入場費:　　　　${s.minSubscriptionFee:0.2f}\n'
+                '大手成交:　　　{s.bulkTrade.Trade[0].Date}\n'
+                '每股(元):　　　 {s.bulkTradePrice}\n'
+                '股數(萬):　　　 {s.bulkTradeQty}\n'
+                '沽空紀錄:　　　{s.shortPut.Trade[0].Date}\n'
+                '沽空量:　　　　{s.shortPut.Trade[0].Qty}\n'
+                '平均價:　　　　{s.shortPut.Trade[0].Price}\n'
+                '沽空金額:　　　{s.shortPut.Trade[0].Amount}\n'
+                '</b>').format(s=json_obj)
+
     # c command
     def get_fx(self, data):
         data['method'] = 'sendMessage'
@@ -113,11 +213,13 @@ class FxStock:
         if len(ccy_param) != 0:
             current = self.get_xrates(ccy_param[0], ccy_param[1], 1)
             current = 'NA' if current == '-1' else current
-            data['text'] = '<b>{}</b>'.format(current)
+            data['text'] = '<b>{} to {}\n{}</b>'.format(ccy_param[0].upper(), ccy_param[1].upper(), current)
 
     def get_ccy_param(self, data):
         args = data['args'].strip()
-        if (' to ' in args and len(args) != 10) or (' to ' not in args and len(args) != 3):
+        if args == '':
+            args = 'jpy'
+        elif (' to ' in args and len(args) != 10) or (' to ' not in args and len(args) != 3):
             data['text'] = 'Please use the following format.\ne.g. /c jpy\ne.g. /c jpy to hkd'
             return []
 
@@ -126,10 +228,10 @@ class FxStock:
         ccy = ccys[0]
         ccy2 = ccys[1]
 
-        if ccy.upper() not in self.ccy_dct.keys():
+        if ccy.upper() not in Constant.CCY_DCT.keys():
             data['text'] = '"{}" is not a valid currency code. Please retry.'.format(ccy)
             return []
-        if ccy2.upper() not in self.ccy_dct.keys():
+        if ccy2.upper() not in Constant.CCY_DCT.keys():
             data['text'] = '"{}" is not a valid currency code. Please retry.'.format(ccy2)
             return []
         return [ccy, ccy2]
@@ -152,11 +254,11 @@ class FxStock:
             idx_info = self.get_idx_info('%5EHSI')
             data['text'] = '<b><u>{}</u>\n{}    {}</b>'.format(idx_info.get('name', 'NA'), idx_info.get('price', 'NA'),
                                                                idx_info.get('change', 'NA'))
-        elif args.upper() not in self.idx_dct_no_prefix.keys():
+        elif args.upper() not in Constant.IDX_DCT_NO_PREFIX.keys():
             data['text'] = '"{}" is not a valid index code. Please retry.'.format(args)
         else:
             code = args.upper()
-            if '%5E' + code in self.idx_dct.keys():
+            if '%5E' + code in Constant.IDX_DCT.keys():
                 code = '%5E' + code
             idx_info = self.get_idx_info(code)
             data['text'] = '<b><u>{}</u>\n{}    {}</b>'.format(idx_info.get('name', 'NA'), idx_info.get('price', 'NA'),
@@ -255,7 +357,7 @@ class FxStock:
         end_idx = len(args) if end_idx < 0 else end_idx
         code = args[:end_idx].upper()
 
-        if code in self.idx_dct_no_prefix.keys():
+        if code in Constant.IDX_DCT_NO_PREFIX.keys():
             # verify index code
             types = 'IDX'
             sym_idx = args.find('&lt')
@@ -266,7 +368,7 @@ class FxStock:
                 args = args[sym_idx:].strip()
             operators = args[:3]
             amount = args[3:].strip()
-            if '%5E' + code in self.idx_dct.keys():
+            if '%5E' + code in Constant.IDX_DCT.keys():
                 code = '%5E' + code
         elif args[0].isnumeric():
             # verify stock code
@@ -300,10 +402,10 @@ class FxStock:
             operators = args[11:14]
             amount = args[14:].strip()
 
-            if ccy.upper() not in self.ccy_dct.keys():
+            if ccy.upper() not in Constant.CCY_DCT.keys():
                 data['text'] = '"{}" is not a valid currency code. Please retry.'.format(ccy)
                 return {}
-            elif ccy2.upper() not in self.ccy_dct.keys():
+            elif ccy2.upper() not in Constant.CCY_DCT.keys():
                 data['text'] = '"{}" is not a valid currency code. Please retry.'.format(ccy2)
                 return {}
             code = ccy.upper() + ':' + ccy2.upper()
@@ -368,10 +470,10 @@ class FxStock:
                    'For index:\n'
                    'e.g. /reset hsi')
 
-        if args.upper() in self.idx_dct_no_prefix.keys():
+        if args.upper() in Constant.IDX_DCT_NO_PREFIX.keys():
             # verify index code
             types = 'IDX'
-            if '%5E' + args.upper() in self.idx_dct.keys():
+            if '%5E' + args.upper() in Constant.IDX_DCT.keys():
                 code = '%5E' + args.upper()
             else:
                 code = args.upper()
@@ -395,10 +497,10 @@ class FxStock:
             ccy = args[:3]
             ccy2 = args[7:10]
 
-            if ccy.upper() not in self.ccy_dct.keys():
+            if ccy.upper() not in Constant.CCY_DCT.keys():
                 data['text'] = '"{}" is not a valid currency code. Please retry.'.format(ccy)
                 return {}
-            elif ccy2.upper() not in self.ccy_dct.keys():
+            elif ccy2.upper() not in Constant.CCY_DCT.keys():
                 data['text'] = '"{}" is not a valid currency code. Please retry.'.format(ccy2)
                 return {}
             code = ccy.upper() + ':' + ccy2.upper()
@@ -435,21 +537,13 @@ class FxStock:
         data['method'] = 'sendMessage'
         args = data['args'].strip()
         if args == '':
-            data['text'] = self.ccy_lst
+            data['text'] = ''.join(['{} - {}\n'.format(k, v) for k, v in Constant.CCY_DCT.items()])
         else:
             data['text'] = self.search_ccy(args)
 
-    def get_ccy_dct(self):
-        try:
-            rows = self.db.execute('SELECT * FROM currencies')
-            return dict(rows)
-        except Exception as e:
-            logger.exception('get_ccy_dct Exception', str(e))
-            return {}
-
     def search_ccy(self, args):
         msg = ''
-        for k, v in self.ccy_dct.items():
+        for k, v in Constant.CCY_DCT.items():
             if args.upper() in k or args.upper() in v.upper():
                 msg += '{} - {}\n'.format(k, v)
         if msg == '':
@@ -461,21 +555,13 @@ class FxStock:
         data['method'] = 'sendMessage'
         args = data['args'].strip()
         if args == '':
-            data['text'] = self.idx_lst
+            data['text'] = ''.join(['{} - {}\n'.format(k, v) for k, v in Constant.IDX_DCT_NO_PREFIX.items()])
         else:
             data['text'] = self.search_idx(args)
 
-    def get_idx_dct(self):
-        try:
-            rows = self.db.execute('SELECT * FROM indices')
-            return dict(rows)
-        except Exception as e:
-            logger.exception('get_idx_dct Exception', str(e))
-            return {}
-
     def search_idx(self, args):
         msg = ''
-        for k, v in self.idx_dct_no_prefix.items():
+        for k, v in Constant.IDX_DCT_NO_PREFIX.items():
             if args.upper() in k or args.upper() in v.upper():
                 msg += '{} - {}\n'.format(k, v)
         if msg == '':
@@ -544,8 +630,7 @@ class FxStock:
     def get_us_stock_code(self, data):
         args = data['args'].strip()
         if len(args) == 0:
-            data['text'] = 'Please use the following format.\ne.g. /us amzn\ne.g. /us aapl'
-            return ''
+            return 'BTC-USD'
         elif not (args.replace('.', '').replace('-', '').isalnum()):
             data['text'] = '"{}" is not a valid US stock code.'.format(args)
             return ''

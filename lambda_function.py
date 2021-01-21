@@ -2,12 +2,12 @@ import json
 import logging
 
 from bot import Bot
-from fxstock_lite import FxStockLite
+from fxstock import FxStock
 from ocr import Ocr
 
 # Setting
-modules = [FxStockLite(enabled=True),
-           Ocr(enabled=True)]
+modules = [FxStock(lambda_mode=True),
+           Ocr()]
 
 logger = logging.getLogger('FxStock')
 logger.setLevel(logging.DEBUG)

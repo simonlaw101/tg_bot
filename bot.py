@@ -4,6 +4,7 @@ import sched
 import time
 
 from service import TgService
+from util import ArrayUtil
 
 logger = logging.getLogger('FxStock')
 
@@ -20,13 +21,20 @@ class Bot:
         self.desc = ''
         self.examples = {}
         for module in modules:
-            if module.enabled:
-                self.cmds.update(module.cmds)
-                self.examples.update(module.examples)
-                self.desc += ''.join(['/{} - {}\n'.format(k, v) for k, v in module.desc.items()])
+            self.cmds.update(module.cmds)
+            self.examples.update(module.examples)
+            self.desc += ''.join(['/{} - {}\n'.format(k, v) for k, v in module.desc.items()])
 
+        # self.init_bot_commands(modules) # run it once only
         self.start_time = self.get_timestamp(0, 50, 0)  # 00:50
         self.end_time = self.get_timestamp(8, 0, 0)  # 08:00
+
+    def init_bot_commands(self, modules):
+        commands = []
+        for module in modules:
+            for k, v in module.desc.items():
+                commands.append({'command': k, 'description': v})
+        TgService.set_my_commands(commands)
 
     def get_timestamp(self, h, m, s):
         now = datetime.datetime.now()
@@ -81,17 +89,21 @@ class Bot:
             if cmd in self.cmds.keys():
                 logger.info('command: [{}]'.format(cmd))
 
-                # self.send_maint_msg(data)  #maintenance
+                # self.send_maint_msg(data)  # maintenance
                 self.cmds[cmd](data)
 
                 if data.get('method') == 'sendMessage':
                     TgService.send_message(data)
+                elif data.get('method') == 'editMessageText':
+                    TgService.edit_message_text(data)
+                elif data.get('method') == 'answerInlineQuery':
+                    TgService.answer_inline_query(data)
+                elif data.get('method') == 'sendPhoto':
+                    TgService.send_photo(data)
                 elif data.get('method') == 'sendMultiMessage':
                     msgs = data.get('msgs', {})
                     for msg in msgs:
                         TgService.send_message(msg)
-                elif data.get('method') == 'sendPhoto':
-                    TgService.send_photo(data)
         except Exception as e:
             logger.exception('bot execute Exception: ' + str(e))
 
@@ -106,25 +118,27 @@ class Bot:
 
     def set_freq(self, data):
         args = data['args'].strip()
-        if args == '':
+        if args in ['-2', '-10']:
+            self.check_freq = int(args) * -1
+        elif args in ['2', '10', '60'] and data.get('callback_query_id', -1) != -1:
+            self.check_freq = int(args)
+            data['method'] = 'editMessageText'
+            data['text'] = 'Check frequency: {} mins'.format(args)
+        else:
             data['method'] = 'sendMessage'
             data['text'] = 'Check frequency: {} mins'.format(self.check_freq)
-        elif args in ['-2', '-10']:
-            self.check_freq = int(args) * -1
-        elif args in ['2', '10', '60']:
-            self.check_freq = int(args)
-            data['method'] = 'sendMessage'
-            data['text'] = 'You have set the check frequency to {} mins'.format(args)
-        else:
-            data['method'] = 'sendMessage'
-            data['text'] = '"{}" is not a valid frequency. We only support 2, 10 and 60'.format(args)
+            btn_lst = [{'text': i, "callback_data": "/freq "+i}
+                       for i in ['2', '10', '60'] if str(self.check_freq) != i]
+            data['reply_markup'] = {"inline_keyboard": [btn_lst]}
 
     def help(self, data):
-        data['method'] = 'sendMessage'
-        args = data['args'].strip().split()
-        if len(args) == 0:
-            data['text'] = '\n\n\n'.join(self.examples.values())
+        args = data['args'].strip()
+        if args in self.examples.keys() and data.get('callback_query_id', -1) != -1:
+            data['method'] = 'editMessageText'
+            data['text'] = self.examples[args]
         else:
-            dct = {k: v for k, v in self.examples.items() if k in args}
-            dct = self.examples if len(dct) == 0 else dct
-            data['text'] = '\n\n\n'.join(dct.values())
+            data['method'] = 'sendMessage'
+            data['text'] = 'Click and see the examples'
+            btn_lst = [{'text': k, "callback_data": "/help "+k}
+                       for k in self.examples.keys()]
+            data['reply_markup'] = {"inline_keyboard": ArrayUtil.reshape(btn_lst, col=5)}

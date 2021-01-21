@@ -8,8 +8,7 @@ logger = logging.getLogger('FxStock')
 
 
 class Ocr:
-    def __init__(self, enabled=True):
-        self.enabled = enabled
+    def __init__(self):
         self.cmds = {'ocr': self.ocr_parse_image}
         self.desc = {'ocr': 'read text from image'}
         self.examples = {'ocr': Constant.OCR_EXAMPLE}
@@ -26,7 +25,7 @@ class Ocr:
         data['method'] = 'sendMessage'
         args = data['args'].strip().lower()
         language = 'eng'
-        file_url = data['file_url']
+        file_url = data.get('file_url', '')
         if args != '':
             if args in self.supported_language:
                 language = args

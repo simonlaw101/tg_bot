@@ -9,8 +9,8 @@ from ocr import Ocr
 
 # Setting
 refresh_time = 0.2
-modules = [FxStock(enabled=True, send_email=False),
-           Ocr(enabled=False)]
+modules = [FxStock(send_email=False),
+           Ocr()]
 
 logger = logging.getLogger('FxStock')
 logger.setLevel(logging.DEBUG)

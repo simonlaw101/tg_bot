@@ -1,3 +1,4 @@
+import json
 import logging
 import requests
 
@@ -17,41 +18,55 @@ class TgService:
 
     @staticmethod
     def get_data(json_obj):
-        message_obj = json_obj.get('message', json_obj.get('edited_message', {}))
-        message_text = message_obj.get('text', '')
+        data = {'update_id': json_obj['update_id'],
+                'from_id': -1,
+                'sender_name': 'unknown'}
+
+        if 'message' in json_obj:
+            message_obj = json_obj['message']
+        elif 'edited_message' in json_obj:
+            message_obj = json_obj['edited_message']
+        elif 'callback_query' in json_obj:
+            callback_query_obj = json_obj['callback_query']
+            message_obj = callback_query_obj.get('message', {})
+            data['callback_query_id'] = callback_query_obj.get('id', -1)
+            data['inline_message_id'] = callback_query_obj.get('inline_message_id', -1)
+            message_obj['text'] = callback_query_obj.get('data', '')
+        elif 'inline_query' in json_obj:
+            message_obj = json_obj['inline_query']
+            data['inline_query_id'] = message_obj.get('id', -1)
+            message_obj['text'] = '/query '+message_obj.get('query')
+        else:
+            message_obj = {}
+
+        data['message_text'] = message_obj.get('text', '')
+        data['chat_id'] = message_obj.get('chat', {}).get('id', -1)
+        data['message_id'] = message_obj.get('message_id', -1)
+
         caption = message_obj.get('caption', '')
-        file_url = ''
         if caption.startswith('/ocr'):
-            message_text = caption
+            data['message_text'] = caption
             file_id = TgService.get_file_id(message_obj)
-            file_url = '' if file_id == '' else TgService.get_file_url(file_id)
-        chat_id = message_obj.get('chat', {}).get('id', '')
-        chat_type = message_obj.get('chat', {}).get('type', 'private')
-        message_id = -1 if chat_type == 'private' else message_obj.get('message_id', -1)
+            data['file_url'] = '' if file_id == '' else TgService.get_file_url(file_id)
 
         if 'from' in message_obj:
-            from_id = message_obj['from'].get('id', '')
-            first_name = message_obj['from'].get('first_name', '')
-            last_name = message_obj['from'].get('last_name', '')
-            sender_name = first_name + ' ' + last_name
-        else:
-            from_id = ''
-            sender_name = "unknown"
+            from_obj = message_obj['from']
+            data['from_id'] = from_obj.get('id', -1)
+            first_name = from_obj.get('first_name', '')
+            last_name = from_obj.get('last_name', '')
+            data['sender_name'] = first_name.strip() + ' ' + last_name.strip()
 
-        return {'update_id': json_obj['update_id'],
-                'chat_id': chat_id,
-                'from_id': from_id,
-                'message_text': message_text,
-                'message_id': message_id,
-                'file_url': file_url,
-                'sender_name': sender_name.strip()}
+        return data
 
     @staticmethod
     def send_message(data):
         params = {'chat_id': data['chat_id'], 'text': data['text'], 'parse_mode': 'HTML'}
         message_id = data.get('message_id', -1)
-        if message_id > 0:
+        reply_markup = data.get('reply_markup')
+        if data['chat_id'] < 0 and message_id != -1:
             params['reply_to_message_id'] = message_id
+        if reply_markup is not None:
+            params['reply_markup'] = json.dumps(reply_markup)
         HttpService.post_json(TgService.API_URL + 'sendMessage', params)
 
     @staticmethod
@@ -77,6 +92,34 @@ class TgService:
         if file_path == '':
             return ''
         return TgService.FILE_URL + file_path
+
+    @staticmethod
+    def set_my_commands(commands):
+        params = {'commands': json.dumps(commands)}
+        HttpService.post_json(TgService.API_URL + 'setMyCommands', params)
+
+    @staticmethod
+    def answer_callback_query(data):
+        params = {'callback_query_id': data['callback_query_id']}
+        HttpService.post_json(TgService.API_URL + 'answerCallbackQuery', params)
+
+    @staticmethod
+    def edit_message_text(data):
+        if data.get('inline_message_id', -1) != -1:
+            params = {'inline_message_id': data['inline_message_id'],
+                      'text': data['text'], 'parse_mode': 'HTML'}
+        else:
+            params = {'chat_id': data['chat_id'], 'message_id': data['message_id'],
+                      'text': data['text'], 'parse_mode': 'HTML'}
+        HttpService.post_json(TgService.API_URL + 'editMessageText', params)
+        TgService.answer_callback_query(data)
+
+    @staticmethod
+    def answer_inline_query(data):
+        params = {'inline_query_id': data['inline_query_id']}
+        if data.get('results') is not None:
+            params['results'] = json.dumps(data['results'])
+        HttpService.post_json(TgService.API_URL + 'answerInlineQuery', params)
 
 
 class HttpService:

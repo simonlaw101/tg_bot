@@ -2,14 +2,16 @@ class Constant:
     S_EXAMPLE = ('/s CODE\n'
                  'example 1: get stock price of HSBC\n'
                  'e.g. /s 5\n'
-                 'e.g. /s 0005')
+                 'e.g. /s 0005\n\n'
+                 '(if no code provided, get HSBC stock price by default)')
 
     C_EXAMPLE = ('/c CCY [to CCY]\n'
                  'example 1: get exchange rate of HKD to CNY\n'
                  'e.g. /c hkd to cny\n\n'
                  'example 2: get exchange rate of JPY to HKD\n'
                  'e.g. /c jpy\n\n'
-                 '(if only 1 currency, to HKD by default)')
+                 '(if only 1 currency, to HKD by default)\n'
+                 '(if no currency code, JPY to HKD by default)')
 
     I_EXAMPLE = ('/i CODE\n'
                  'example 1: get S&P 500 Index\n'
@@ -68,7 +70,8 @@ class Constant:
 
     US_EXAMPLE = ('/us CODE\n'
                   'example 1: search IBM US stock price\n'
-                  'e.g. /us ibm')
+                  'e.g. /us ibm\n\n'
+                  '(if no code provided, Bitcoin price by default)')
 
     MA_EXAMPLE = ('/ma CODE\n'
                   'example 1: search 2888 stock moving average\n'
@@ -87,3 +90,95 @@ class Constant:
                    'example 2: read traditional Chinese text from image\n'
                    'e.g. /ocr cht\n\n'
                    '(if no language provided, read English by default)')
+
+    CCY_DCT = {'AED': 'Emirati Dirham',
+               'ARS': 'Argentine Peso',
+               'AUD': 'Australian Dollar',
+               'BGN': 'Bulgarian Lev',
+               'BHD': 'Bahraini Dinar',
+               'BND': 'Bruneian Dollar',
+               'BRL': 'Brazilian Real',
+               'BWP': 'Botswana Pula',
+               'CAD': 'Canadian Dollar',
+               'CHF': 'Swiss Franc',
+               'CLP': 'Chilean Peso',
+               'CNY': 'Chinese Yuan Renminbi',
+               'COP': 'Colombian Peso',
+               'CZK': 'Czech Koruna',
+               'DKK': 'Danish Krone',
+               'EUR': 'Euro',
+               'GBP': 'British Pound',
+               'HKD': 'Hong Kong Dollar',
+               'HRK': 'Croatian Kuna',
+               'HUF': 'Hungarian Forint',
+               'IDR': 'Indonesian Rupiah',
+               'ILS': 'Israeli Shekel',
+               'INR': 'Indian Rial',
+               'ISK': 'Icelandic Krona',
+               'JPY': 'Japanese Yen',
+               'KRW': 'South Korean Won',
+               'KWD': 'Kuwaiti Dinar',
+               'KZT': 'Kazakhstani Tenge',
+               'LKR': 'Sri Lankan Rupee',
+               'LYD': 'Libyan Dinar',
+               'MUR': 'Mauritian Rupee',
+               'MXN': 'Mexican Peso',
+               'MYR': 'Malaysian Ringgit',
+               'NOK': 'Norwegian Krone',
+               'NPR': 'Nepalese Rupee',
+               'NZD': 'New Zealand Dollar',
+               'OMR': 'Omani Rial',
+               'PHP': 'Philippine Peso',
+               'PKR': 'Pakistani Rupee',
+               'PLN': 'Polish Zloty',
+               'QAR': 'Qatari Riyal',
+               'RON': 'Romanian New Leu',
+               'RUB': 'Russian Ruble',
+               'SAR': 'Saudi Arabian Riyal',
+               'SEK': 'Swedish Krona',
+               'SGD': 'Singapore Dollar',
+               'THB': 'Thai Baht',
+               'TRY': 'Turkish Lira',
+               'TTD': 'Trinidadian Dollar',
+               'TWD': 'Taiwan New Dollar',
+               'USD': 'US Dollar',
+               'VEF': 'Venezuelan Bolivar',
+               'ZAR': 'South African Rand'}
+
+    IDX_DCT = {'%5EGSPC': 'S&P 500',
+               '%5EDJI': 'Dow Jones Industrial Average',
+               '%5EIXIC': 'NASDAQ Composite',
+               '%5ENYA': 'NYSE COMPOSITE (DJ)',
+               '%5EXAX': 'NYSE AMEX COMPOSITE INDEX',
+               '%5EBUK100P': 'Cboe UK 100 Price Return',
+               '%5ERUT': 'Russell 2000',
+               '%5EVIX': 'Vix',
+               '%5EFTSE': 'FTSE 100',
+               '%5EGDAXI': 'DAX PERFORMANCE-INDEX',
+               '%5EFCHI': 'CAC 40',
+               '%5ESTOXX50E': 'ESTX 50 PR.EUR',
+               '%5EN100': 'EURONEXT 100',
+               '%5EBFX': 'BEL 20',
+               'IMOEX.ME': 'MOEX Russia Index',
+               '%5EN225': 'Nikkei 225',
+               '%5EHSI': 'HANG SENG INDEX',
+               '000001.SS': 'SSE Composite Index',
+               '%5ESTI': 'STI Index',
+               '%5EAXJO': 'S&P/ASX 200',
+               '%5EAORD': 'ALL ORDINARIES',
+               '%5EBSESN': 'S&P BSE SENSEX',
+               '%5EJKSE': 'Jakarta Composite Index',
+               '%5EKLSE': 'FTSE Bursa Malaysia KLCI',
+               '%5ENZ50': 'S&P/NZX 50 INDEX GROSS',
+               '%5EKS11': 'KOSPI Composite Index',
+               '%5ETWII': 'TSEC weighted index',
+               '%5EGSPTSE': 'S&P/TSX Composite index',
+               '%5EBVSP': 'IBOVESPA',
+               '%5EMXX': 'IPC MEXICO',
+               '%5EIPSA': 'S&P/CLX IPSA',
+               '%5EMERV': 'MERVAL',
+               '%5ETA125.TA': 'TA-125',
+               '%5ECASE30': 'EGX 30 Price Return Index',
+               '%5EJN0U.JO': 'Top 40 USD Net TRI Index'}
+
+    IDX_DCT_NO_PREFIX = {k.replace('%5E', ''): v for k, v in IDX_DCT.items()}

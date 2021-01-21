@@ -1,5 +1,20 @@
 import json
+import math
 from types import SimpleNamespace
+
+
+class ArrayUtil:
+    @staticmethod
+    def reshape(lst, row=None, col=None):
+        length = len(lst)
+        if row is None and col is None:
+            row = math.ceil(math.sqrt(length))
+            col = math.floor(math.sqrt(length))
+        elif row is None:
+            row = math.ceil(length / col)
+        elif col is None:
+            col = math.ceil(length / row)
+        return [lst[i * col:(i + 1) * col] for i in range(0, row)]
 
 
 class JsonObject(SimpleNamespace):
@@ -36,5 +51,17 @@ class NumberUtil:
         try: 
             float(s)
             return True
-        except ValueError:
+        except (ValueError, TypeError):
             return False
+
+    @staticmethod
+    def format_num(num):
+        num = str(num).replace(',', '')
+        if not(NumberUtil.is_float(num)):
+            return ''
+        num = float(num)
+        if num > 100000000:
+            return '{:,.3f}億'.format(num/100000000)
+        elif num > 10000:
+            return '{:,.3f}萬'.format(num/10000)
+        return str(num)

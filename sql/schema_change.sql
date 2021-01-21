@@ -9,13 +9,3 @@ CREATE TABLE IF NOT EXISTS alerts (
     chatid integer NOT NULL,
 	PRIMARY KEY (fromid, types, code, operators)
 );
--- currencies table
-CREATE TABLE IF NOT EXISTS currencies (
-    code text PRIMARY KEY,
-	descs text NOT NULL
-);
--- indices table
-CREATE TABLE IF NOT EXISTS indices (
-    code text PRIMARY KEY,
-	descs text NOT NULL
-);
