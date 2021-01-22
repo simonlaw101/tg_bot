@@ -39,6 +39,11 @@ steps: https://medium.com/@simonlaw_9918/stock-tracking-telegram-bot-21be907c70e
 
 ### 5. Deploy to AWS Lambda + API Gateway (Optional)
 steps: https://simonlaw-9918.medium.com/stock-tracking-telegram-bot-2-8141f80c065c
+
+### 6. Set bot commands and enable inline query (Optional)
+https://core.telegram.org/bots/api#setmycommands
+
+https://core.telegram.org/bots/inline
 <br/><br/><br/><br/>
 
 Reference:

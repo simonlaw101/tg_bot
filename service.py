@@ -96,7 +96,7 @@ class TgService:
     @staticmethod
     def set_my_commands(commands):
         params = {'commands': json.dumps(commands)}
-        HttpService.post_json(TgService.API_URL + 'setMyCommands', params)
+        return HttpService.post_json(TgService.API_URL + 'setMyCommands', params)
 
     @staticmethod
     def answer_callback_query(data):
@@ -120,6 +120,14 @@ class TgService:
         if data.get('results') is not None:
             params['results'] = json.dumps(data['results'])
         HttpService.post_json(TgService.API_URL + 'answerInlineQuery', params)
+
+    @staticmethod
+    def get_webhook_info():
+        return HttpService.post_json(TgService.API_URL + 'getWebhookInfo')
+
+    @staticmethod
+    def set_web_hook(invoke_url):
+        return HttpService.post_json(TgService.API_URL + 'setWebHook?url=' + invoke_url)
 
 
 class HttpService:

@@ -168,43 +168,7 @@ class FxStock:
         json_obj.bulkTradeQty = '' if str(qty_price) == '' else qty_price.split('-')[0]
         json_obj.bulkTradePrice = '' if str(qty_price) == '' else qty_price.split('-')[1]
 
-        return ('<b><u>{s.daily.nameChi}</u>\n'
-                '{s.real.np}    {s.change} ({s.pctChange}%)\n\n'
-                '開市價:　　　　{s.opening.openPrice}\n'
-                '最高價:　　　　{s.real.dyh}\n'
-                '最低價:　　　　{s.real.dyl}\n'
-                '前收市價:　　　{s.daily.preCPrice}\n'
-                '成交量:　　　　{s.real.vol}\n'
-                '成交金額:　　　{s.real.tvr}\n'
-                '市盈率:　　　　{s.peRatio:0.2f}倍\n'
-                '息率:　　　　　{s.dividendYield:0.2f}%\n'
-                '市值:　　　　　{s.calculation.marketValue}\n'
-                '發行股數:　　　{s.daily.issuedShare}\n'
-                '10日RSI:　　　 {s.daily.rsi10}\n'
-                '14日RSI:　　　 {s.daily.rsi14}\n'
-                '20日RSI:　　　 {s.daily.rsi20}\n'
-                '10日高:　　　   {s.daily.tenDayHigh}\n'
-                '1個月高:　　　 {s.daily.mthHigh}\n'
-                '52周高:　　　   {s.daily.wk52High}\n'
-                '10日低:　　　   {s.daily.tenDayLow}\n'
-                '1個月低:　　　 {s.daily.mthLow}\n'
-                '52周低:　　　   {s.daily.wk52Low}\n'
-                '10日平均價:　   {s.daily.ma10}\n'
-                '20日平均價:　   {s.daily.ma20}\n'
-                '50日平均價:　   {s.daily.ma50}\n'
-                '全年每股盈利:　{s.daily.eps}元\n'
-                '全年每股派息:　{s.daily.dividend}元\n'
-                '買賣差價:　　　{s.calculation.spread}\n'
-                '每手股數:　　　{s.daily.lotSize}股\n'
-                '入場費:　　　　${s.minSubscriptionFee:0.2f}\n'
-                '大手成交:　　　{s.bulkTrade.Trade[0].Date}\n'
-                '每股(元):　　　 {s.bulkTradePrice}\n'
-                '股數(萬):　　　 {s.bulkTradeQty}\n'
-                '沽空紀錄:　　　{s.shortPut.Trade[0].Date}\n'
-                '沽空量:　　　　{s.shortPut.Trade[0].Qty}\n'
-                '平均價:　　　　{s.shortPut.Trade[0].Price}\n'
-                '沽空金額:　　　{s.shortPut.Trade[0].Amount}\n'
-                '</b>').format(s=json_obj)
+        return Constant.STK_DETAIL_TEMPLATE.format(s=json_obj)
 
     # c command
     def get_fx(self, data):
@@ -339,19 +303,7 @@ class FxStock:
 
     def verify_alert(self, data):
         args = data['args'].strip().replace('<', '&lt').replace('>', '&gt')
-        err_msg = ('Please use the following format.\n'
-                   'For stock:\n'
-                   'e.g. /alert 5 50\n'
-                   'e.g. /alert 0005 &gt50\n\n'
-                   'For exchange rate:\n'
-                   'e.g. /alert jpy 0.07\n'
-                   'e.g. /alert aud &lt5\n'
-                   'e.g. /alert jpy to hkd 0.07\n'
-                   'e.g. /alert twd to hkd &gt3.8\n\n'
-                   'For index:\n'
-                   'e.g. /alert hsi 25000\n'
-                   'e.g. /alert hsi &lt25000\n'
-                   'e.g. /alert hsi &gt28000')
+        err_msg = Constant.ALERT_ERR_MSG
 
         end_idx = args.find(' ')
         end_idx = len(args) if end_idx < 0 else end_idx
@@ -460,15 +412,7 @@ class FxStock:
 
     def verify_reset(self, data):
         args = data['args'].strip()
-        err_msg = ('Please use the following format.\n'
-                   'For stock:\n'
-                   'e.g. /reset 5\n'
-                   'e.g. /reset 0005\n\n'
-                   'For exchange rate:\n'
-                   'e.g. /reset jpy\n'
-                   'e.g. /reset twd to hkd\n\n'
-                   'For index:\n'
-                   'e.g. /reset hsi')
+        err_msg = Constant.RESET_ERR_MSG
 
         if args.upper() in Constant.IDX_DCT_NO_PREFIX.keys():
             # verify index code
