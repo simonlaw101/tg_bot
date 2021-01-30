@@ -65,6 +65,6 @@ https://stackoverflow.com/questions/53960651/how-to-make-an-undo-function-in-can
 3. Color picker JS library<br/>
 http://jillix.github.io/piklor.js/
    
-4. Firebase Storage upload image JS
+4. Firebase Storage upload image JS<br/>
 https://www.youtube.com/watch?v=ZH-PnY-JGBU&t=702s
    
