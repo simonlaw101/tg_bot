@@ -40,7 +40,7 @@ class Bot:
         now = datetime.datetime.now()
         sched_time = datetime.datetime(now.year, now.month, now.day, h, m, s)
         if sched_time < now:
-            sched_time = sched_time.replace(day=now.day + 1)
+            sched_time += datetime.timedelta(days=1)
         return sched_time.timestamp()
 
     def run(self):
