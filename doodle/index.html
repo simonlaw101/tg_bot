@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Doodle</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no" />
+		<link href="index.css" rel="stylesheet">
+		<script src="index.js" defer></script>
+		
+		<!-- Color Picker -->
+		<script src="js/piklor.min.js"></script>
+        <link href="css/custom.css" rel="stylesheet">
+		
+		<!-- Copy to Clipboard -->
+		<script src="https://cdn.jsdelivr.net/npm/clipboard@2.0.6/dist/clipboard.min.js"></script>
+		
+		<!-- Firebase -->
+		<script src="https://www.gstatic.com/firebasejs/7.15.5/firebase-app.js"></script>
+		<script src="https://www.gstatic.com/firebasejs/7.15.5/firebase-auth.js"></script>
+		<script src="https://www.gstatic.com/firebasejs/7.15.5/firebase-database.js"></script> 
+		<script src="https://www.gstatic.com/firebasejs/7.15.5/firebase-storage.js"></script> 
+	</head>
+
+	<body>
+		<img style='display:none;' id="image">
+		<input style='display:none;' type="button" class="copy-btn clip" id="copy" data-clipboard-text="" value="Copy and paste in Telegram!">
+		<div class="tool-bar">
+			<div id="color-picker-wrapper" class="tool-icon color-picker-wrapper">
+				<div id="color" class="color-icon" value="#3498db"></div>
+				<div class="color-picker"></div>
+			</div>
+			<input type="image" class="tool-icon" id="small-dot" src="image/small_dot.png">
+			<input type="image" class="tool-icon active" id="medium-dot" src="image/medium_dot.png">
+			<input type="image" class="tool-icon" id="large-dot" src="image/large_dot.png">
+			<input type="image" class="tool-icon" id="eraser" src="image/eraser.png">
+			<input type="image" class="tool-icon" id="undo" src="image/undo.png">
+		</div>
+		<canvas id="paint"></canvas>
+		<div class="tool-bar-2">
+			<input type="image" class="tool-icon" id="tick" src="image/tick.png">
+			<input type="image" class="tool-icon" id="clear" src="image/clear.png">
+		</div>
+	</body>
+
+</html>

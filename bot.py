@@ -98,6 +98,10 @@ class Bot:
                     TgService.edit_message_text(data)
                 elif data.get('method') == 'answerInlineQuery':
                     TgService.answer_inline_query(data)
+                elif data.get('method') == 'sendGame':
+                    TgService.send_game(data)
+                elif data.get('method') == 'answerCallbackQuery':
+                    TgService.answer_callback_query(data)
                 elif data.get('method') == 'sendPhoto':
                     TgService.send_photo(data)
                 elif data.get('method') == 'sendMultiMessage':

@@ -91,6 +91,11 @@ class Constant:
                    'e.g. /ocr cht\n\n'
                    '(if no language provided, read English by default)')
 
+    DOODLE_EXAMPLE = ('Step 1: /doodle and click "Draw"\n'
+                      'Step 2: Draw your masterpiece\n'
+                      'Step 3: Click &#x2713;\n'
+                      'Step 4: Copy and paste here!')
+
     CCY_DCT = {'AED': 'Emirati Dirham',
                'ARS': 'Argentine Peso',
                'AUD': 'Australian Dollar',

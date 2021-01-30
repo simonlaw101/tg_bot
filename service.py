@@ -31,7 +31,10 @@ class TgService:
             message_obj = callback_query_obj.get('message', {})
             data['callback_query_id'] = callback_query_obj.get('id', -1)
             data['inline_message_id'] = callback_query_obj.get('inline_message_id', -1)
-            message_obj['text'] = callback_query_obj.get('data', '')
+            if 'game_short_name' in callback_query_obj:
+                message_obj['text'] = '/'+callback_query_obj['game_short_name']
+            else:
+                message_obj['text'] = callback_query_obj.get('data', '')
         elif 'inline_query' in json_obj:
             message_obj = json_obj['inline_query']
             data['inline_query_id'] = message_obj.get('id', -1)
@@ -101,6 +104,9 @@ class TgService:
     @staticmethod
     def answer_callback_query(data):
         params = {'callback_query_id': data['callback_query_id']}
+        url = data.get('url', '')
+        if url != '':
+            params['url'] = url
         HttpService.post_json(TgService.API_URL + 'answerCallbackQuery', params)
 
     @staticmethod
@@ -128,6 +134,17 @@ class TgService:
     @staticmethod
     def set_web_hook(invoke_url):
         return HttpService.post_json(TgService.API_URL + 'setWebHook?url=' + invoke_url)
+
+    @staticmethod
+    def send_game(data):
+        params = {'chat_id': data['chat_id'], 'game_short_name': data['game_short_name']}
+        message_id = data.get('message_id', -1)
+        reply_markup = data.get('reply_markup')
+        if data['chat_id'] < 0 and message_id != -1:
+            params['reply_to_message_id'] = message_id
+        if reply_markup is not None:
+            params['reply_markup'] = json.dumps(reply_markup)
+        HttpService.post_json(TgService.API_URL + 'sendGame', params)
 
 
 class HttpService:
