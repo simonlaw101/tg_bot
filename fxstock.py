@@ -1,10 +1,14 @@
 import logging
 from bs4 import BeautifulSoup
 
-from db import DB
 from constant import Constant
 from service import HttpService
 from util import JsonUtil, NumberUtil
+
+try:
+    from db import DB
+except ImportError:
+    DB = None
 
 try:
     from myemail import Email
