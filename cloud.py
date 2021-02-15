@@ -20,7 +20,6 @@ class Cloud:
         self.desc = {'cloud': 'upload/download file'}
         self.examples = {'cloud': Constant.CLOUD_EXAMPLE}
         self.fb = FbService(bucket_name)
-        self.tmp_dir = os.path.join(os.path.dirname(__file__), 'cloud')
 
     def cloud(self, data):
         args = data['args'].strip()
@@ -61,7 +60,7 @@ class Cloud:
         full_path = ''
         filename = self.get_des_filename(args, file_url)
         try:
-            with tempfile.NamedTemporaryFile(mode="wb", delete=False, dir=self.tmp_dir) as f:
+            with tempfile.NamedTemporaryFile(mode="wb", delete=False) as f:
                 full_path = f.name
                 resp = HttpService.get(file_url)
                 f.write(resp.content)
