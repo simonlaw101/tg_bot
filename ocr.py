@@ -35,7 +35,8 @@ class Ocr:
                 return ''
         file_extension = splitext(file_url)[1].lower()
         if file_url == '':
-            data['text'] = 'Please send a photo with caption /ocr'
+            data['text'] = ('Please send a photo with caption /ocr\n'
+                            'or reply a photo with command /ocr')
         elif file_extension not in self.supported_file_type:
             data['text'] = '{} file format is not supported'.format(file_extension)
         else:

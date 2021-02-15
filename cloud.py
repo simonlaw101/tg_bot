@@ -104,7 +104,6 @@ class Cloud:
                                 "{} downloaded successfully").format(args_lst[1],
                                                                      os.path.split(args_lst[0])[1])
                 data['document'] = self.fb.get_file_url(args_lst[0])
-                print(data['document'])
 
     def cloud_delete(self, data):
         args = data['args']
