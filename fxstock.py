@@ -3,9 +3,13 @@ from bs4 import BeautifulSoup
 
 from db import DB
 from constant import Constant
-from myemail import Email
 from service import HttpService
 from util import JsonUtil, NumberUtil
+
+try:
+    from myemail import Email
+except ImportError:
+    Email = None
 
 logger = logging.getLogger('FxStock')
 
@@ -18,36 +22,24 @@ class FxStock:
                      'i': self.get_idx,
                      'alert': self.alert,
                      'reset': self.reset,
-                     'ccy': self.get_ccy,
-                     'idx': self.get_idx_lst,
                      'check': self.check,
                      'us': self.get_us_stk,
-                     'ma': self.get_ma,
-                     'rsi': self.get_rsi,
                      'query': self.query}
         self.desc = {'s': 'get stock price',
                      'c': 'get currency exchange rate',
                      'i': 'get index',
                      'alert': 'view/set alert',
                      'reset': 'clear alert',
-                     'ccy': 'search currency code',
-                     'idx': 'search index symbol',
-                     'us': 'get us stock price',
-                     'ma': 'get stock moving average',
-                     'rsi': 'get stock relative strength index'}
+                     'us': 'get us stock price'}
         self.examples = {'s': Constant.S_EXAMPLE,
                          'c': Constant.C_EXAMPLE,
                          'i': Constant.I_EXAMPLE,
                          'alert': Constant.ALERT_EXAMPLE,
                          'reset': Constant.RESET_EXAMPLE,
-                         'ccy': Constant.CCY_EXAMPLE,
-                         'idx': Constant.IDX_EXAMPLE,
-                         'us': Constant.US_EXAMPLE,
-                         'ma': Constant.MA_EXAMPLE,
-                         'rsi': Constant.RSI_EXAMPLE}
+                         'us': Constant.US_EXAMPLE}
 
         if lambda_mode:
-            cmd_lst = ['s', 'c', 'i', 'ccy', 'idx', 'us', 'ma', 'rsi', 'query']
+            cmd_lst = ['s', 'c', 'i', 'us', 'query']
             self.cmds = {cmd: self.cmds[cmd] for cmd in cmd_lst}
             self.desc = {cmd: self.desc[cmd] for cmd in cmd_lst if cmd in self.desc}
             self.examples = {cmd: self.examples[cmd] for cmd in cmd_lst if cmd in self.examples}
@@ -172,6 +164,10 @@ class FxStock:
 
     # c command
     def get_fx(self, data):
+        if data.get('callback_query_id', -1) != -1:
+            data['method'] = 'editMessageText'
+            data['text'] = ''.join(['{} - {}\n'.format(k, v) for k, v in Constant.CCY_DCT.items()])
+            return
         data['method'] = 'sendMessage'
         ccy_param = self.get_ccy_param(data)
         if len(ccy_param) != 0:
@@ -194,9 +190,13 @@ class FxStock:
 
         if ccy.upper() not in Constant.CCY_DCT.keys():
             data['text'] = '"{}" is not a valid currency code. Please retry.'.format(ccy)
+            btn_lst = [{'text': 'View currency code', "callback_data": "/c"}]
+            data['reply_markup'] = {"inline_keyboard": [btn_lst]}
             return []
         if ccy2.upper() not in Constant.CCY_DCT.keys():
             data['text'] = '"{}" is not a valid currency code. Please retry.'.format(ccy2)
+            btn_lst = [{'text': 'View currency code', "callback_data": "/c"}]
+            data['reply_markup'] = {"inline_keyboard": [btn_lst]}
             return []
         return [ccy, ccy2]
 
@@ -212,6 +212,10 @@ class FxStock:
 
     # i command
     def get_idx(self, data):
+        if data.get('callback_query_id', -1) != -1:
+            data['method'] = 'editMessageText'
+            data['text'] = ''.join(['{} - {}\n'.format(k, v) for k, v in Constant.IDX_DCT_NO_PREFIX.items()])
+            return
         data['method'] = 'sendMessage'
         args = data['args'].strip()
         if args == '':
@@ -220,6 +224,8 @@ class FxStock:
                                                                idx_info.get('change', 'NA'))
         elif args.upper() not in Constant.IDX_DCT_NO_PREFIX.keys():
             data['text'] = '"{}" is not a valid index code. Please retry.'.format(args)
+            btn_lst = [{'text': 'View index code', "callback_data": "/i"}]
+            data['reply_markup'] = {"inline_keyboard": [btn_lst]}
         else:
             code = args.upper()
             if '%5E' + code in Constant.IDX_DCT.keys():
@@ -476,42 +482,6 @@ class FxStock:
             self.db.execute(delete_sql, param)
             return '<b>Hi {}, you have cleared alerts on {} {}</b>'.format(sender_name, desc, code_text)
 
-    # ccy command
-    def get_ccy(self, data):
-        data['method'] = 'sendMessage'
-        args = data['args'].strip()
-        if args == '':
-            data['text'] = ''.join(['{} - {}\n'.format(k, v) for k, v in Constant.CCY_DCT.items()])
-        else:
-            data['text'] = self.search_ccy(args)
-
-    def search_ccy(self, args):
-        msg = ''
-        for k, v in Constant.CCY_DCT.items():
-            if args.upper() in k or args.upper() in v.upper():
-                msg += '{} - {}\n'.format(k, v)
-        if msg == '':
-            return 'No results found.'
-        return msg
-
-    # idx command
-    def get_idx_lst(self, data):
-        data['method'] = 'sendMessage'
-        args = data['args'].strip()
-        if args == '':
-            data['text'] = ''.join(['{} - {}\n'.format(k, v) for k, v in Constant.IDX_DCT_NO_PREFIX.items()])
-        else:
-            data['text'] = self.search_idx(args)
-
-    def search_idx(self, args):
-        msg = ''
-        for k, v in Constant.IDX_DCT_NO_PREFIX.items():
-            if args.upper() in k or args.upper() in v.upper():
-                msg += '{} - {}\n'.format(k, v)
-        if msg == '':
-            return 'No results found.'
-        return msg
-
     # check command
     def check(self, data):
         select_sql = 'SELECT * FROM alerts'
@@ -610,125 +580,3 @@ class FxStock:
             stock_info['change'] = change_ele[0].get_text(strip=True)
 
         return stock_info
-
-        # ma command
-
-    def get_ma(self, data):
-        data['method'] = 'sendMessage'
-        code = self.get_ma_code(data)
-        if code != '':
-            ma_info = self.get_ma_info(code)
-            if len(ma_info) == 0:
-                data['text'] = 'Please enter a valid stock code.'
-            else:
-                data['text'] = ('<b>10-Day Moving Average: {}\n'
-                                '50-Day Moving Average: {}\n'
-                                '200-Day Moving Average: {}</b>').format(ma_info.get('10', 'NA'),
-                                                                         ma_info.get('50', 'NA'),
-                                                                         ma_info.get('200', 'NA'))
-
-    def get_ma_code(self, data):
-        args = data['args'].strip()
-        if len(args) == 0 or len(args) > 5:
-            data['text'] = 'Please use the following format.\ne.g. /ma 2888\ne.g. /ma 02888'
-            return ''
-        elif not (args.isnumeric()) or int(args) == 0:
-            data['text'] = '"{}" is not a valid stock code.'.format(args)
-            return ''
-        return args
-
-    def get_ma_info(self, code):
-        url = 'https://finance.now.com/stock/?s={}'.format(code.zfill(5))
-        url_2 = 'https://finance.yahoo.com/quote/{0}.HK/key-statistics?p={0}.HK'.format(
-            code[1:] if len(code) > 4 else code.zfill(4))
-        headers = {'User-Agent': ''}
-        page = HttpService.get(url, headers)
-        soup = BeautifulSoup(page.content, 'html.parser')
-        page_2 = HttpService.get(url_2, headers)
-        soup_2 = BeautifulSoup(page_2.content, 'html.parser')
-        try:
-            ma_10 = soup.find('td', text='10天平均').find_next('td').get_text(strip=True).replace(',', '')
-            ma_50 = soup.find('td', text='50天平均').find_next('td').get_text(strip=True).replace(',', '')
-            ma_200 = soup_2.find('span', text='200-Day Moving Average').parent.find_next('td').get_text(
-                strip=True).replace(',', '')
-        except AttributeError as ae:
-            logger.error('now finance moving average is not available!')
-            logger.exception('fxstock get_ma_info AttributeError: ' + str(ae))
-            return {}
-        return {'10': ma_10, '50': ma_50, '200': ma_200}
-
-    # rsi command
-    def get_rsi(self, data):
-        data['method'] = 'sendMessage'
-        code = self.get_rsi_code(data)
-        if code != '':
-            rsi_info = self.get_rsi_info(code)
-            if len(rsi_info) == 0:
-                data['text'] = 'Please enter a valid stock code.'
-            else:
-                data['text'] = '<b>RSI: {}</b>'.format(rsi_info.get('rsi', 'NA'))
-
-    def get_rsi_code(self, data):
-        args = data['args'].strip()
-        if len(args) == 0 or len(args) > 4:
-            data['text'] = 'Please use the following format.\ne.g. /rsi 5\ne.g. /rsi 0005'
-            return ''
-        elif not (args.isnumeric()) or int(args) == 0:
-            data['text'] = '"{}" is not a valid stock code.'.format(args)
-            return ''
-        return args
-
-    def get_rsi_info(self, code):
-        # url = 'https://finance.yahoo.com/quote/AAPL/history?p=AAPL'
-        # url = 'https://finance.yahoo.com/quote/%5EHSI/history?p=%5EHSI'
-        url = 'https://finance.yahoo.com/quote/{0}.HK/history?p={0}.HK'.format(code.zfill(4))
-        headers = {'User-Agent': ''}
-        page = HttpService.get(url, headers)
-        soup = BeautifulSoup(page.content, 'html.parser')
-        prices = []
-        try:
-            trs = soup.find_all('tr', {'class': 'BdT Bdc($seperatorColor) Ta(end) Fz(s) Whs(nw)'})
-            i = 0
-            while len(prices) < 90:
-                tds = trs[i].find_all('td')
-                i += 1
-                if len(tds) < 5:
-                    continue
-                else:
-                    span = tds[4].find('span')
-                    if span is None:
-                        continue
-                    else:
-                        price = span.get_text(strip=True).replace(',', '')
-                        prices.append(price)
-
-            prices.reverse()
-
-            rsi = self.rsi_func(prices)
-        except AttributeError as ae:
-            logger.error('yahoo finance relative strength index is not available!')
-            logger.exception('fxstock get_rsi AttributeError: ' + str(ae))
-            return {}
-        return {'rsi': rsi}
-
-    def rsi_func(self, prices, n=14):
-        deltas = [float(j) - float(i) for i, j in zip(prices[:-1], prices[1:])]
-        seed = deltas[:n + 1]
-        up = sum([i for i in seed if i > 0]) / n
-        down = sum([-i for i in seed if i < 0]) / n
-        rs = up / down
-
-        for i in range(n, len(prices)):
-            delta = deltas[i - 1]
-            if delta > 0:
-                upval = delta
-                downval = 0.
-            else:
-                upval = 0.
-                downval = -delta
-
-            up = (up * (n - 1) + upval) / n
-            down = (down * (n - 1) + downval) / n
-            rs = up / down
-        rsi = 100. - 100. / (1. + rs)
-        return round(rsi, 3)

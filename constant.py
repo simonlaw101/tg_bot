@@ -56,32 +56,10 @@ class Constant:
                      'example 1: clear all alerts\n'
                      'e.g. /reset')
 
-    CCY_EXAMPLE = ('/ccy [KEYWORD]\n'
-                   'example 1: search curreny with keyword "taiwan"\n'
-                   'e.g. /ccy taiwan\n\n'
-                   'example 2: list all currencies\n'
-                   'e.g. /ccy')
-
-    IDX_EXAMPLE = ('/idx [KEYWORD]\n'
-                   'example 1: search index with keyword "Hang Seng"\n'
-                   'e.g. /idx hang seng\n\n'
-                   'example 2: list all indices\n'
-                   'e.g. /idx')
-
     US_EXAMPLE = ('/us CODE\n'
                   'example 1: search IBM US stock price\n'
                   'e.g. /us ibm\n\n'
                   '(if no code provided, Bitcoin price by default)')
-
-    MA_EXAMPLE = ('/ma CODE\n'
-                  'example 1: search 2888 stock moving average\n'
-                  'e.g. /ma 2888\n'
-                  'e.g. /ma 02888')
-
-    RSI_EXAMPLE = ('/rsi CODE\n'
-                   'example 1: search HSBC stock relative strength index\n'
-                   'e.g. /rsi 5\n'
-                   'e.g. /rsi 0005')
 
     OCR_EXAMPLE = ('/ocr LANGUAGE\n'
                    'example 1: read English text from image\n'

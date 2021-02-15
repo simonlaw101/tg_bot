@@ -6,9 +6,12 @@ import requests
 from datetime import timedelta
 from uuid import uuid4
 
-import firebase_admin
-from firebase_admin import credentials
-from firebase_admin import storage
+try:
+    import firebase_admin
+    from firebase_admin import credentials
+    from firebase_admin import storage
+except ImportError:
+    firebase_admin, credentials, storage = None, None, None
 
 logger = logging.getLogger('FxStock')
 
