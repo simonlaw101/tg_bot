@@ -8,6 +8,7 @@ from fxstock import FxStock
 from ocr import Ocr
 
 # Setting
+token = 'YOUR_TOKEN'
 refresh_time = 0.2
 modules = [FxStock(send_email=False),
            Ocr()]
@@ -24,7 +25,7 @@ logger.addHandler(stream_handler)
 
 
 def main():
-    bot = Bot(modules, refresh_time)
+    bot = Bot(token, modules, refresh_time)
     bot.run()
 
 

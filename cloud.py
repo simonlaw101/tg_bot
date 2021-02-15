@@ -12,14 +12,14 @@ logger = logging.getLogger('FxStock')
 
 
 class Cloud:
-    def __init__(self):
+    def __init__(self, bucket_name):
         self.cmds = {'cloud': self.cloud,
                      'cloud_download': self.cloud_download,
                      'cloud_delete': self.cloud_delete,
                      'cloud_cancel': self.cloud_cancel}
         self.desc = {'cloud': 'upload/download file'}
         self.examples = {'cloud': Constant.CLOUD_EXAMPLE}
-        self.fb = FbService()
+        self.fb = FbService(bucket_name)
         self.tmp_dir = os.path.join(os.path.dirname(__file__), 'cloud')
 
     def cloud(self, data):
@@ -27,7 +27,7 @@ class Cloud:
         file_url = data.get('file_url', '')
 
         if data.get('callback_query_id', -1) != -1:
-            data['method'] = 'editMessageText'
+            data['method'] = ['editMessageText', 'answerCallbackQuery']
             args_lst = args.split('|')
             data['text'] = "{}'s Cloud Storage:\n{}".format(args_lst[1],
                                                             os.path.split(args_lst[0])[1])
@@ -83,7 +83,7 @@ class Cloud:
         args = data['args'].strip()
         args_lst = args.split('|')
         if data.get('callback_query_id', -1) != -1:
-            data['method'] = 'editMessageText'
+            data['method'] = ['editMessageText', 'answerCallbackQuery']
             data['sender_name'] = args_lst[1]
             data['from_id'] = os.path.split(args_lst[0])[0]
             self.list_file(data)
@@ -93,13 +93,13 @@ class Cloud:
         args_lst = args.split('|')
         if data.get('callback_query_id', -1) != -1:
             if os.path.splitext(args)[1].lower() in ['.gif', '.jpg', '.jpeg', '.png']:
-                data['method'] = 'sendPhotoEditMessageText'
+                data['method'] = ['sendPhoto', 'answerCallbackQuery', 'editMessageText']
                 data['text'] = ("{}'s Cloud Storage:\n"
                                 "{} downloaded successfully").format(args_lst[1],
                                                                      os.path.split(args_lst[0])[1])
                 data['photo'] = self.fb.get_file_url(args_lst[0])
             else:
-                data['method'] = 'sendDocumentEditMessageText'
+                data['method'] = ['sendDocument', 'answerCallbackQuery', 'editMessageText']
                 data['text'] = ("{}'s Cloud Storage:\n"
                                 "{} downloaded successfully").format(args_lst[1],
                                                                      os.path.split(args_lst[0])[1])
@@ -111,7 +111,7 @@ class Cloud:
         args_lst = args.split('|')
         if data.get('callback_query_id', -1) != -1:
             self.fb.delete_file(args_lst[0])
-            data['method'] = 'editMessageText'
+            data['method'] = ['editMessageText', 'answerCallbackQuery']
             data['text'] = ("{}'s Cloud Storage:\n"
                             "{} deleted successfully").format(args_lst[1],
                                                               os.path.split(args_lst[0])[1])

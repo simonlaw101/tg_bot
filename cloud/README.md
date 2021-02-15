@@ -18,9 +18,10 @@ https://firebase.google.com/docs/admin/setup#initialize-sdk
 
 ### 2. Fill in the config
 
-Fill in the bucket name in service.py
+Import Cloud module and fill in the bucket name in main.py
 ```
-firebase_admin.initialize_app(cred, {'storageBucket': 'YOUR_STORAGE_BUCKET'})
+from cloud import Cloud
+modules = [Cloud('YOUR_BUCKET_NAME')]
 ```
 
 ### Note:

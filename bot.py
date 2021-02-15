@@ -10,7 +10,16 @@ logger = logging.getLogger('FxStock')
 
 
 class Bot:
-    def __init__(self, modules, refresh=0.2):
+    def __init__(self, token, modules, refresh=0.2):
+        self.tg = TgService(token)
+        self.api = {'sendMessage': self.tg.send_message,
+                    'answerCallbackQuery': self.tg.answer_callback_query,
+                    'editMessageText': self.tg.edit_message_text,
+                    'sendDocument': self.tg.send_document,
+                    'sendPhoto': self.tg.send_photo,
+                    'sendGame': self.tg.send_game,
+                    'answerInlineQuery': self.tg.answer_inline_query,
+                    'sendMultiMessage': self.send_multi_message}
         self.refresh_time = refresh
         self.check_freq = 10
         self.scheduler = sched.scheduler(time.time, time.sleep)
@@ -34,7 +43,7 @@ class Bot:
         for module in modules:
             for k, v in module.desc.items():
                 commands.append({'command': k, 'description': v})
-        TgService.set_my_commands(commands)
+        self.tg.set_my_commands(commands)
 
     def get_timestamp(self, h, m, s):
         now = datetime.datetime.now()
@@ -52,7 +61,7 @@ class Bot:
         self.scheduler.run()
 
     def check_msg(self, new_offset=0):
-        all_updates = TgService.get_updates(new_offset)
+        all_updates = self.tg.get_updates(new_offset)
 
         for current_update in all_updates:
             data = self.process_update(current_update)
@@ -75,7 +84,7 @@ class Bot:
         self.scheduler.enter(60 * 60 * 24, 0, self.end_trade)
 
     def process_update(self, json_obj):
-        data = TgService.get_data(json_obj)
+        data = self.tg.get_data(json_obj)
         message_text = data['message_text']
         if message_text.startswith('/'):
             end_idx = len(message_text) if message_text.find(' ') < 0 else message_text.find(' ')
@@ -92,30 +101,13 @@ class Bot:
                 # self.send_maint_msg(data)  # maintenance
                 self.cmds[cmd](data)
 
-                if data.get('method') == 'sendMessage':
-                    TgService.send_message(data)
-                elif data.get('method') == 'editMessageText':
-                    TgService.edit_message_text(data)
-                elif data.get('method') == 'answerInlineQuery':
-                    TgService.answer_inline_query(data)
-                elif data.get('method') == 'sendGame':
-                    TgService.send_game(data)
-                elif data.get('method') == 'answerCallbackQuery':
-                    TgService.answer_callback_query(data)
-                elif data.get('method') == 'sendPhoto':
-                    TgService.send_photo(data)
-                elif data.get('method') == 'sendDocument':
-                    TgService.send_document(data)
-                elif data.get('method') == 'sendPhotoEditMessageText':
-                    TgService.send_photo(data)
-                    TgService.edit_message_text(data)
-                elif data.get('method') == 'sendDocumentEditMessageText':
-                    TgService.send_document(data)
-                    TgService.edit_message_text(data)
-                elif data.get('method') == 'sendMultiMessage':
-                    msgs = data.get('msgs', {})
-                    for msg in msgs:
-                        TgService.send_message(msg)
+                methods = data.get('method')
+                if isinstance(methods, list):
+                    for method in methods:
+                        self.api.get(method, lambda *args: None)(data)
+                else:
+                    self.api.get(methods, lambda *args: None)(data)
+
         except Exception as e:
             logger.exception('bot execute Exception: ' + str(e))
 
@@ -128,13 +120,18 @@ class Bot:
         data['text'] = ('The bot is currently unavailable due to maintenance.\n'
                         'We apologize for any inconvenience caused.')
 
+    def send_multi_message(self, data):
+        msgs = data.get('msgs', {})
+        for msg in msgs:
+            self.tg.send_message(msg)
+
     def set_freq(self, data):
         args = data['args'].strip()
         if args in ['-2', '-10']:
             self.check_freq = int(args) * -1
         elif args in ['2', '10', '60'] and data.get('callback_query_id', -1) != -1:
             self.check_freq = int(args)
-            data['method'] = 'editMessageText'
+            data['method'] = ['editMessageText', 'answerCallbackQuery']
             data['text'] = 'Check frequency: {} mins'.format(args)
         else:
             data['method'] = 'sendMessage'
@@ -146,7 +143,7 @@ class Bot:
     def help(self, data):
         args = data['args'].strip()
         if args in self.examples.keys() and data.get('callback_query_id', -1) != -1:
-            data['method'] = 'editMessageText'
+            data['method'] = ['editMessageText', 'answerCallbackQuery']
             data['text'] = self.examples[args]
         else:
             data['method'] = 'sendMessage'

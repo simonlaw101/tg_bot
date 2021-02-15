@@ -70,7 +70,7 @@ class FxStock:
     # s command
     def get_stk(self, data):
         if data.get('callback_query_id', -1) != -1:
-            data['method'] = 'editMessageText'
+            data['method'] = ['editMessageText', 'answerCallbackQuery']
             data['text'] = self.get_stock_detail(data['args'])
             return
         data['method'] = 'sendMessage'
@@ -165,7 +165,7 @@ class FxStock:
     # c command
     def get_fx(self, data):
         if data.get('callback_query_id', -1) != -1:
-            data['method'] = 'editMessageText'
+            data['method'] = ['editMessageText', 'answerCallbackQuery']
             data['text'] = ''.join(['{} - {}\n'.format(k, v) for k, v in Constant.CCY_DCT.items()])
             return
         data['method'] = 'sendMessage'
@@ -213,7 +213,7 @@ class FxStock:
     # i command
     def get_idx(self, data):
         if data.get('callback_query_id', -1) != -1:
-            data['method'] = 'editMessageText'
+            data['method'] = ['editMessageText', 'answerCallbackQuery']
             data['text'] = ''.join(['{} - {}\n'.format(k, v) for k, v in Constant.IDX_DCT_NO_PREFIX.items()])
             return
         data['method'] = 'sendMessage'

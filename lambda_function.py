@@ -6,6 +6,7 @@ from fxstock import FxStock
 from ocr import Ocr
 
 # Setting
+token = 'YOUR_TOKEN'
 modules = [FxStock(lambda_mode=True),
            Ocr()]
 
@@ -16,7 +17,7 @@ stream_handler = logging.StreamHandler()
 stream_handler.setFormatter(formatter)
 logger.addHandler(stream_handler)
 
-bot = Bot(modules)
+bot = Bot(token, modules)
 
 
 def lambda_handler(event, context):
