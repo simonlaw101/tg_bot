@@ -8,12 +8,12 @@ logger = logging.getLogger('FxStock')
 
 
 class Ocr:
-    def __init__(self):
+    def __init__(self, api_key='helloworld'):
         self.cmds = {'ocr': self.ocr_parse_image}
         self.desc = {'ocr': 'read text from image'}
         self.examples = {'ocr': Constant.OCR_EXAMPLE}
         self.ocr_url = 'https://api.ocr.space/parse/image'
-        self.api_key = 'helloworld'     # put YOUR_KEY here
+        self.api_key = api_key
         self.supported_file_type = {'.gif': 'GIF', '.jpg': 'JPG', '.jpeg': 'JPG', '.png': 'PNG'}
         self.supported_language = {'chs': 'Chinese(Simplified)',
                                    'cht': 'Chinese(Traditional)',

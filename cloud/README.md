@@ -21,7 +21,7 @@ https://firebase.google.com/docs/admin/setup#initialize-sdk
 Import Cloud module and fill in the bucket name in main.py
 ```
 from cloud import Cloud
-modules = [Cloud('YOUR_BUCKET_NAME')]
+modules = [Cloud(bucket_name='YOUR_BUCKET_NAME')]
 ```
 
 ### Note:
