@@ -104,6 +104,14 @@ class Bot:
                     TgService.answer_callback_query(data)
                 elif data.get('method') == 'sendPhoto':
                     TgService.send_photo(data)
+                elif data.get('method') == 'sendDocument':
+                    TgService.send_document(data)
+                elif data.get('method') == 'sendPhotoEditMessageText':
+                    TgService.send_photo(data)
+                    TgService.edit_message_text(data)
+                elif data.get('method') == 'sendDocumentEditMessageText':
+                    TgService.send_document(data)
+                    TgService.edit_message_text(data)
                 elif data.get('method') == 'sendMultiMessage':
                     msgs = data.get('msgs', {})
                     for msg in msgs:

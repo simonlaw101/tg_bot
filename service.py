@@ -1,6 +1,14 @@
 import json
 import logging
+import os
 import requests
+
+from datetime import timedelta
+from uuid import uuid4
+
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import storage
 
 logger = logging.getLogger('FxStock')
 
@@ -24,11 +32,14 @@ class TgService:
 
         if 'message' in json_obj:
             message_obj = json_obj['message']
+            TgService.set_from(message_obj, data)
         elif 'edited_message' in json_obj:
             message_obj = json_obj['edited_message']
+            TgService.set_from(message_obj, data)
         elif 'callback_query' in json_obj:
             callback_query_obj = json_obj['callback_query']
             message_obj = callback_query_obj.get('message', {})
+            TgService.set_from(callback_query_obj, data)
             data['callback_query_id'] = callback_query_obj.get('id', -1)
             data['inline_message_id'] = callback_query_obj.get('inline_message_id', -1)
             if 'game_short_name' in callback_query_obj:
@@ -37,6 +48,7 @@ class TgService:
                 message_obj['text'] = callback_query_obj.get('data', '')
         elif 'inline_query' in json_obj:
             message_obj = json_obj['inline_query']
+            TgService.set_from(message_obj, data)
             data['inline_query_id'] = message_obj.get('id', -1)
             message_obj['text'] = '/query '+message_obj.get('query')
         else:
@@ -47,19 +59,24 @@ class TgService:
         data['message_id'] = message_obj.get('message_id', -1)
 
         caption = message_obj.get('caption', '')
-        if caption.startswith('/ocr'):
+        if caption.startswith(('/ocr', '/cloud')):
             data['message_text'] = caption
             file_id = TgService.get_file_id(message_obj)
             data['file_url'] = '' if file_id == '' else TgService.get_file_url(file_id)
+        elif data['message_text'].startswith(('/ocr', '/cloud')) and 'reply_to_message' in message_obj:
+            file_id = TgService.get_file_id(message_obj['reply_to_message'])
+            data['file_url'] = '' if file_id == '' else TgService.get_file_url(file_id)
 
-        if 'from' in message_obj:
-            from_obj = message_obj['from']
+        return data
+
+    @staticmethod
+    def set_from(json_obj, data):
+        if 'from' in json_obj:
+            from_obj = json_obj['from']
             data['from_id'] = from_obj.get('id', -1)
             first_name = from_obj.get('first_name', '')
             last_name = from_obj.get('last_name', '')
             data['sender_name'] = first_name.strip() + ' ' + last_name.strip()
-
-        return data
 
     @staticmethod
     def send_message(data):
@@ -74,17 +91,33 @@ class TgService:
 
     @staticmethod
     def send_photo(data):
-        params = {'chat_id': data['chat_id'], 'photo': data['image_url'], 'parse_mode': 'HTML'}
+        params = {'chat_id': data['chat_id'], 'photo': data['photo'], 'parse_mode': 'HTML'}
+        message_id = data.get('message_id', -1)
+        if data['chat_id'] < 0 and message_id != -1:
+            params['reply_to_message_id'] = message_id
         HttpService.post_json(TgService.API_URL + 'sendPhoto', params)
+        TgService.answer_callback_query(data)
+
+    @staticmethod
+    def send_document(data):
+        params = {'chat_id': data['chat_id'], 'document': data['document'], 'parse_mode': 'HTML'}
+        message_id = data.get('message_id', -1)
+        if data['chat_id'] < 0 and message_id != -1:
+            params['reply_to_message_id'] = message_id
+        HttpService.post_json(TgService.API_URL + 'sendDocument', params)
+        TgService.answer_callback_query(data)
 
     @staticmethod
     def get_file_id(message_obj):
         photo_list = message_obj.get('photo', [])
         document = message_obj.get('document', {})
+        video = message_obj.get('video', {})
         if len(photo_list) > 0:
             return photo_list[-1].get('file_id', '')
         elif len(document) > 0:
             return document.get('file_id', '')
+        elif len(video) > 0:
+            return video.get('file_id', '')
         return ''
 
     @staticmethod
@@ -117,6 +150,9 @@ class TgService:
         else:
             params = {'chat_id': data['chat_id'], 'message_id': data['message_id'],
                       'text': data['text'], 'parse_mode': 'HTML'}
+        reply_markup = data.get('reply_markup')
+        if reply_markup is not None:
+            params['reply_markup'] = json.dumps(reply_markup)
         HttpService.post_json(TgService.API_URL + 'editMessageText', params)
         TgService.answer_callback_query(data)
 
@@ -145,6 +181,42 @@ class TgService:
         if reply_markup is not None:
             params['reply_markup'] = json.dumps(reply_markup)
         HttpService.post_json(TgService.API_URL + 'sendGame', params)
+
+
+class FbService:
+    def __init__(self):
+        cred = credentials.Certificate('cloud/serviceAccountKey.json')
+        firebase_admin.initialize_app(cred, {'storageBucket': 'YOUR_STORAGE_BUCKET'})
+
+    def list_file(self, folder_name):
+        bucket = storage.bucket()
+        lst = []
+        for blob in bucket.list_blobs():
+            filename = blob.name
+            if filename.startswith(folder_name):
+                lst.append({'name': os.path.split(filename)[1], 'full_path': filename})
+        return lst
+
+    def upload_file(self, src_filename, des_filename):
+        bucket = storage.bucket()
+        blob = bucket.blob(des_filename)
+        blob.metadata = {"firebaseStorageDownloadTokens": uuid4()}
+        blob.upload_from_filename(src_filename)
+
+    def delete_file(self, src_filename):
+        bucket = storage.bucket()
+        blob = bucket.blob(src_filename)
+        blob.delete()
+
+    def download_file(self, src_filename, des_filename):
+        bucket = storage.bucket()
+        blob = bucket.blob(src_filename)
+        blob.download_to_filename(des_filename)
+
+    def get_file_url(self, src_filename):
+        bucket = storage.bucket()
+        blob = bucket.blob(src_filename)
+        return blob.generate_signed_url(timedelta(seconds=30), method='GET')
 
 
 class HttpService:

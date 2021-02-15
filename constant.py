@@ -96,6 +96,15 @@ class Constant:
                       'Step 3: Click &#x2713;\n'
                       'Step 4: Copy and paste here!')
 
+    CLOUD_EXAMPLE = ('/cloud FILENAME\n'
+                     'example 1: upload file to the cloud with file name "test"\n'
+                     'e.g. reply to file with command /cloud test\n'
+                     'or send file with caption /cloud test\n\n'
+                     '(if no file name provided, timestamp by default)\n\n\n'
+                     '/cloud\n'
+                     'example 2: view all files in the cloud\n'
+                     'e.g. /cloud')
+
     CCY_DCT = {'AED': 'Emirati Dirham',
                'ARS': 'Argentine Peso',
                'AUD': 'Australian Dollar',
