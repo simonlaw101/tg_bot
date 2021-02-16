@@ -23,9 +23,9 @@ git clone https://github.com/simonlaw101/tg_bot.git
 ```
 
 ### 2. Fill in the token
-Fill in the token in service.py
+Fill in the token in main.py
 ```
-TOKEN = 'YOUR_TOKEN'
+token = 'YOUR_TOKEN'
 ```
 
 ### 3. Run the script
