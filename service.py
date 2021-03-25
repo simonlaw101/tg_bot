@@ -214,9 +214,9 @@ class HttpService:
             return None
 
     @staticmethod
-    def post_json(url, params=None):
+    def post_json(url, params=None, headers=None):
         try:
-            resp = requests.post(url, data=params)
+            resp = requests.post(url, data=params, headers=headers)
             return resp.json()
         except Exception as e:
             logger.exception('httpservice post_json Exception: '+str(e))

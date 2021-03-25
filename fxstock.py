@@ -135,7 +135,8 @@ class FxStock:
 
     def get_stock_detail(self, code):
         url = 'http://realtime-money18-cdn.on.cc/securityQuote/genStockDetailHKJSON.php'
-        json_resp = HttpService.post_json(url, {'stockcode': code.zfill(5)})
+        headers = {'User-Agent': 'PostmanRuntime/7.26.8'}
+        json_resp = HttpService.post_json(url, {'stockcode': code.zfill(5)}, headers)
 
         json_obj = JsonUtil.to_json_obj(json_resp)
 
