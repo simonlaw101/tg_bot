@@ -13,6 +13,11 @@ try:
 except ImportError:
     firebase_admin, credentials, storage = None, None, None
 
+try:
+    import cfscrape
+except ImportError:
+    cfscrape = None
+
 logger = logging.getLogger('FxStock')
 
 
@@ -220,4 +225,14 @@ class HttpService:
             return resp.json()
         except Exception as e:
             logger.exception('httpservice post_json Exception: '+str(e))
+            return {}
+
+    @staticmethod
+    def cf_get_json(url, headers=None):
+        try:
+            scraper = cfscrape.create_scraper()
+            resp = scraper.get(url, headers=headers)
+            return resp.json()
+        except Exception as e:
+            logger.exception('httpservice cf_get_json Exception: '+str(e))
             return {}
