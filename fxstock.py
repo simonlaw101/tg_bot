@@ -27,23 +27,20 @@ class FxStock:
                      'alert': self.alert,
                      'reset': self.reset,
                      'check': self.check,
-                     'us': self.get_us_stk,
                      'query': self.query}
         self.desc = {'s': 'get stock price',
                      'c': 'get currency exchange rate',
                      'i': 'get index',
                      'alert': 'view/set alert',
-                     'reset': 'clear alert',
-                     'us': 'get us stock price'}
+                     'reset': 'clear alert'}
         self.examples = {'s': Constant.S_EXAMPLE,
                          'c': Constant.C_EXAMPLE,
                          'i': Constant.I_EXAMPLE,
                          'alert': Constant.ALERT_EXAMPLE,
-                         'reset': Constant.RESET_EXAMPLE,
-                         'us': Constant.US_EXAMPLE}
+                         'reset': Constant.RESET_EXAMPLE}
 
         if lambda_mode:
-            cmd_lst = ['s', 'c', 'i', 'us', 'query']
+            cmd_lst = ['s', 'c', 'i', 'query']
             self.cmds = {cmd: self.cmds[cmd] for cmd in cmd_lst}
             self.desc = {cmd: self.desc[cmd] for cmd in cmd_lst if cmd in self.desc}
             self.examples = {cmd: self.examples[cmd] for cmd in cmd_lst if cmd in self.examples}
@@ -81,29 +78,35 @@ class FxStock:
         code = self.get_stock_code(data)
         if code != '':
             stock_info = self.get_stock_info(code)
-            if len(stock_info) == 0:
+            if len(stock_info) == 0 or stock_info.get('price', '') == '':
                 data['text'] = 'Please enter a valid stock code.'
             else:
                 data['text'] = '<b><u>{}</u>\n{}    {}</b>'.format(stock_info.get('company', 'NA'),
                                                                    stock_info.get('price', 'NA'),
                                                                    stock_info.get('change', 'NA'))
-                btn_lst = [{'text': 'View details', "callback_data": "/s " + code}]
-                data['reply_markup'] = {"inline_keyboard": [btn_lst]}
+                if code.isnumeric():
+                    btn_lst = [{'text': 'View details', "callback_data": "/s " + code}]
+                    data['reply_markup'] = {"inline_keyboard": [btn_lst]}
 
     def get_stock_code(self, data):
         args = data['args'].strip()
         if len(args) == 0:
             return '5'
-        elif len(args) > 4:
-            data['text'] = 'Please use the following format.\ne.g. /s 5\ne.g. /s 0005'
+        if args.isnumeric():
+            if len(args) > 4:
+                data['text'] = 'Please use the following format.\ne.g. /s 5\ne.g. /s 0005'
+                return ''
+            elif int(args) == 0:
+                data['text'] = '"{}" is not a valid stock code.'.format(args)
+                return ''
+        elif not (args.replace('.', '').replace('-', '').isalnum()):
+            data['text'] = '"{}" is not a valid US stock code.'.format(args)
             return ''
-        elif not (args.isnumeric()) or int(args) == 0:
-            data['text'] = '"{}" is not a valid stock code.'.format(args)
-            return ''
-        return args
+        return args.upper()
 
     def get_stock_info(self, code):
-        url = 'https://finance.yahoo.com/quote/{}.HK/'.format(code.zfill(4))
+        code = '{}.HK'.format(code.zfill(4)) if code.isnumeric() else code
+        url = 'https://finance.yahoo.com/quote/{}/'.format(code)
         headers = {'User-Agent': ''}
         page = HttpService.get(url, headers)
         soup = BeautifulSoup(page.content, 'html.parser')
@@ -164,7 +167,7 @@ class FxStock:
         json_obj.bulkTradeQty = '' if str(qty_price) == '' else qty_price.split('-')[0]
         json_obj.bulkTradePrice = '' if str(qty_price) == '' else qty_price.split('-')[1]
 
-        return Constant.STK_DETAIL_TEMPLATE.format(s=json_obj)
+        return Constant.STK_DETAIL_TEMPLATE_ENG.format(s=json_obj)
 
     # c command
     def get_fx(self, data):
@@ -531,56 +534,3 @@ class FxStock:
         if len(msgs) != 0:
             data['method'] = 'sendMultiMessage'
             data['msgs'] = msgs
-
-    # us command
-    def get_us_stk(self, data):
-        data['method'] = 'sendMessage'
-        code = self.get_us_stock_code(data)
-        if code != '':
-            stock_info = self.get_us_stock_info(code)
-            if len(stock_info) == 0 or stock_info.get('price', '') == '':
-                data['text'] = 'Please enter a valid US stock code.'
-            else:
-                data['text'] = '<b><u>{}</u>\n{}    {}</b>'.format(stock_info.get('company', 'NA'),
-                                                                   stock_info.get('price', 'NA'),
-                                                                   stock_info.get('change', 'NA'))
-
-    def get_us_stock_code(self, data):
-        args = data['args'].strip()
-        if len(args) == 0:
-            return 'BTC-USD'
-        elif not (args.replace('.', '').replace('-', '').isalnum()):
-            data['text'] = '"{}" is not a valid US stock code.'.format(args)
-            return ''
-        return args.upper()
-
-    def get_us_stock_info(self, code):
-        url = 'https://finance.yahoo.com/quote/{}/'.format(code)
-        headers = {'User-Agent': ''}
-        page = HttpService.get(url, headers)
-        soup = BeautifulSoup(page.content, 'html.parser')
-        stock_info = {}
-
-        price_ele = soup.find('span', {'class': 'Trsdu(0.3s) Fw(b) Fz(36px) Mb(-4px) D(ib)'})
-        if price_ele is None:
-            logger.error('yahoo finance US stock price is not available!')
-        else:
-            stock_info['price'] = price_ele.get_text(strip=True).replace(',', '')
-
-        company_ele = soup.find('h1', {'class': 'D(ib) Fz(18px)'})
-        if company_ele is None:
-            logger.error('yahoo finance US company name is not available!')
-        else:
-            company = company_ele.get_text(strip=True)
-            company = company[:company.find('(')].strip()
-            stock_info['company'] = company
-
-        change_ele = soup.find_all('span', {'class': ['Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($negativeColor)',
-                                                      'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px) C($positiveColor)',
-                                                      'Trsdu(0.3s) Fw(500) Pstart(10px) Fz(24px)']})
-        if change_ele is None or len(change_ele) == 0:
-            logger.error('yahoo finance US stock change is not available!')
-        else:
-            stock_info['change'] = change_ele[0].get_text(strip=True)
-
-        return stock_info

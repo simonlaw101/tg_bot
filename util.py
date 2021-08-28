@@ -60,6 +60,18 @@ class NumberUtil:
         if not(NumberUtil.is_float(num)):
             return ''
         num = float(num)
+        if num > 1000000000:
+            return '{:,.3f}B'.format(num/1000000000)
+        elif num > 1000000:
+            return '{:,.3f}M'.format(num/1000000)
+        return str(num)
+
+    @staticmethod
+    def format_num_chi(num):
+        num = str(num).replace(',', '')
+        if not(NumberUtil.is_float(num)):
+            return ''
+        num = float(num)
         if num > 100000000:
             return '{:,.3f}億'.format(num/100000000)
         elif num > 10000:
