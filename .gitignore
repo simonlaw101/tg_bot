@@ -1,6 +1,3 @@
 
 *.pyc
 .idea
-cloud/serviceAccountKey.json
-doodle/index.js
-*.log
