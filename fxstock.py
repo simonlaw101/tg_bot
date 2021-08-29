@@ -50,23 +50,25 @@ class FxStock:
     # query command
     def query(self, data):
         data['method'] = 'answerInlineQuery'
-        args = data['args'].strip()
-        if 0 < len(args) < 5 and args.isnumeric() and int(args) > 0:
-            stock_info = self.get_stock_info(args)
+        code = data['args'].strip().upper()
+        if (code.isnumeric() and 0 < len(code) < 5 and int(code) > 0) or\
+                code.replace('.', '').replace('-', '').isalnum():
+            stock_info = self.get_stock_info(code)
             if len(stock_info) != 0:
                 s = {i: stock_info.get(i, 'NA') for i in ['company', 'price', 'change']}
-                btn_lst = [{'text': 'View details', "callback_data": "/s " + args}]
                 data['results'] = [{
                                         "type": "article",
                                         "id": "unique",
                                         "title": '{company}'.format(**s),
                                         "description": '{price}    {change}'.format(**s),
-                                        "reply_markup": {"inline_keyboard": [btn_lst]},
                                         "input_message_content": {
                                             "parse_mode": "HTML",
                                             "message_text": '<b><u>{company}</u>\n{price}    {change}</b>'.format(**s)
                                         }
                                     }]
+                if code.isnumeric():
+                    btn_lst = [{'text': 'View details', "callback_data": "/s " + code}]
+                    data['results'][0]["reply_markup"] = {"inline_keyboard": [btn_lst]}
 
     # s command
     def get_stk(self, data):
@@ -322,34 +324,7 @@ class FxStock:
         end_idx = len(args) if end_idx < 0 else end_idx
         code = args[:end_idx].upper()
 
-        if code in Constant.IDX_DCT_NO_PREFIX.keys():
-            # verify index code
-            types = 'IDX'
-            sym_idx = args.find('&lt')
-            sym_idx = args.find('&gt') if sym_idx < 0 else sym_idx
-            if sym_idx < 0:
-                args = '&lt' + args[end_idx:].strip()
-            else:
-                args = args[sym_idx:].strip()
-            operators = args[:3]
-            amount = args[3:].strip()
-            if '%5E' + code in Constant.IDX_DCT.keys():
-                code = '%5E' + code
-        elif args[0].isnumeric():
-            # verify stock code
-            types = 'STK'
-            if len(code) > 4 or not (code.isnumeric()) or \
-                    int(code) == 0 or len(self.get_stock_info(code)) == 0:
-                data['text'] = '"{}" is not a valid stock code. Please retry.'.format(code)
-                return {}
-            code = code.zfill(4)
-            if '&lt' not in args and '&gt' not in args:
-                args = code + '&lt' + args[end_idx:].strip()
-            else:
-                args = code + args[end_idx:].strip()
-            operators = args[4:7]
-            amount = args[7:].strip()
-        else:
+        if code in Constant.CCY_DCT.keys():
             # verify currency
             types = 'FX'
             if len(args) < 5:
@@ -374,6 +349,41 @@ class FxStock:
                 data['text'] = '"{}" is not a valid currency code. Please retry.'.format(ccy2)
                 return {}
             code = ccy.upper() + ':' + ccy2.upper()
+        elif code in Constant.IDX_DCT_NO_PREFIX.keys():
+            # verify index code
+            types = 'IDX'
+            sym_idx = args.find('&lt')
+            sym_idx = args.find('&gt') if sym_idx < 0 else sym_idx
+            if sym_idx < 0:
+                args = '&lt' + args[end_idx:].strip()
+            else:
+                args = args[sym_idx:].strip()
+            operators = args[:3]
+            amount = args[3:].strip()
+            if '%5E' + code in Constant.IDX_DCT.keys():
+                code = '%5E' + code
+        else:
+            # verify stock code
+            types = 'STK'
+            if code.isnumeric():
+                if len(code) > 4 or int(code) == 0:
+                    data['text'] = '"{}" is not a valid stock code. Please retry.'.format(code)
+                    return {}
+                code = code.zfill(4)
+            elif not (code.replace('.', '').replace('-', '').isalnum()):
+                data['text'] = '"{}" is not a valid US stock code. Please retry.'.format(code)
+                return {}
+            if len(self.get_stock_info(code)) == 0:
+                data['text'] = 'Please enter a valid stock code.'
+                return {}
+
+            if '&lt' not in args and '&gt' not in args:
+                operators = '&lt'
+                amount = args[end_idx:].strip()
+            else:
+                args = args[end_idx:].strip()
+                operators = args[:3]
+                amount = args[3:].strip()
 
         if operators not in ['&lt', '&gt']:
             data['text'] = err_msg
@@ -425,23 +435,10 @@ class FxStock:
 
     def verify_reset(self, data):
         args = data['args'].strip()
+        code = args.upper()
         err_msg = Constant.RESET_ERR_MSG
 
-        if args.upper() in Constant.IDX_DCT_NO_PREFIX.keys():
-            # verify index code
-            types = 'IDX'
-            if '%5E' + args.upper() in Constant.IDX_DCT.keys():
-                code = '%5E' + args.upper()
-            else:
-                code = args.upper()
-        elif args[0].isnumeric():
-            # verify stock code
-            types = 'STK'
-            if len(args) > 4 or not (args.isnumeric()) or int(args) == 0:
-                data['text'] = '"{}" is not a valid stock code. Please retry.'.format(args)
-                return {}
-            code = args.zfill(4)
-        else:
+        if code in Constant.CCY_DCT.keys():
             # verify currency
             types = 'FX'
             if (' to ' not in args and len(args) != 3) or (' to ' in args and len(args) != 10):
@@ -461,6 +458,22 @@ class FxStock:
                 data['text'] = '"{}" is not a valid currency code. Please retry.'.format(ccy2)
                 return {}
             code = ccy.upper() + ':' + ccy2.upper()
+        elif code in Constant.IDX_DCT_NO_PREFIX.keys():
+            # verify index code
+            types = 'IDX'
+            if '%5E' + code in Constant.IDX_DCT.keys():
+                code = '%5E' + code
+        else:
+            # verify stock code
+            types = 'STK'
+            if code.isnumeric():
+                if len(code) > 4 or int(code) == 0:
+                    data['text'] = '"{}" is not a valid stock code. Please retry.'.format(code)
+                    return {}
+                code = code.zfill(4)
+            elif not (code.replace('.', '').replace('-', '').isalnum()):
+                data['text'] = '"{}" is not a valid US stock code. Please retry.'.format(code)
+                return {}
 
         return {'types': types,
                 'code': code}
