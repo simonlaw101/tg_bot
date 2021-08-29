@@ -6,11 +6,12 @@ It is a telegram bot for monitoring stock price, exchange rate and index.
 
 ### 0. Prerequisite
 
+Python 3.7
 Install Python external library
 ```
-pip install beautifulsoup4
-pip install requests
-pip install cfscrape
+pip3 install beautifulsoup4
+pip3 install requests
+pip3 install cfscrape
 ```
 
 Talk to BotFather in telegram and create a bot.

@@ -8,7 +8,7 @@ It is a cloud service for file upload/download.
 
 add Firebase Admin SDK
 ```
-pip install firebase-admin
+pip3 install firebase-admin
 ```
 
 ### 1. Generate private key

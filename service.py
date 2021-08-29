@@ -9,10 +9,14 @@ from uuid import uuid4
 try:
     import firebase_admin
     from firebase_admin import credentials
-    from firebase_admin import firestore
     from firebase_admin import storage
 except ImportError:
-    firebase_admin, credentials, firestore, storage = None, None, None, None
+    firebase_admin, credentials, storage = None, None, None
+
+try:
+    from firebase_admin import firestore
+except ImportError:
+    firestore = None
 
 try:
     import cfscrape
