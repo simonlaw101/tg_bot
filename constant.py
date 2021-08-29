@@ -80,6 +80,14 @@ class Constant:
                      'example 2: view all files in the cloud\n'
                      'e.g. /cloud')
 
+    PIN_EXAMPLE = ('/pin MESSAGE_NAME\n'
+                   'example 1: pin a message with name "event_detail"\n'
+                   'e.g. reply to message with command /pin event_detail\n\n'
+                   '(if no name provided, timestamp by default)\n\n\n'
+                   '/pin\n'
+                   'example 2: view all pinned messages\n'
+                   'e.g. /pin')
+
     CCY_DCT = {'AED': 'Emirati Dirham',
                'ARS': 'Argentine Peso',
                'AUD': 'Australian Dollar',

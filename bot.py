@@ -19,6 +19,7 @@ class Bot:
                     'sendPhoto': self.tg.send_photo,
                     'sendGame': self.tg.send_game,
                     'answerInlineQuery': self.tg.answer_inline_query,
+                    'deleteMessage': self.tg.delete_message,
                     'sendMultiMessage': self.send_multi_message}
         self.refresh_time = refresh
         self.check_freq = 10
@@ -104,7 +105,10 @@ class Bot:
                 methods = data.get('method')
                 if isinstance(methods, list):
                     for method in methods:
-                        self.api.get(method, lambda *args: None)(data)
+                        if isinstance(method, dict):
+                            self.api.get(method['method'], lambda *args: None)(method)
+                        else:
+                            self.api.get(method, lambda *args: None)(data)
                 else:
                     self.api.get(methods, lambda *args: None)(data)
 

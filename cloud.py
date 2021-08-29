@@ -17,9 +17,16 @@ class Cloud:
                      'c1': self.cloud_select,
                      'c2': self.cloud_download,
                      'c3': self.cloud_delete,
-                     'c4': self.cloud_cancel}
-        self.desc = {'cloud': 'upload/download file'}
-        self.examples = {'cloud': Constant.CLOUD_EXAMPLE}
+                     'c4': self.cloud_cancel,
+                     'pin': self.pin,
+                     'p1': self.pin_select,
+                     'p2': self.pin_view,
+                     'p3': self.pin_unpin,
+                     'p4': self.pin_cancel}
+        self.desc = {'cloud': 'upload/download file',
+                     'pin': 'pin message'}
+        self.examples = {'cloud': Constant.CLOUD_EXAMPLE,
+                         'pin': Constant.PIN_EXAMPLE}
         self.fb = FbService(bucket_name)
 
     def cloud(self, data):
@@ -56,7 +63,7 @@ class Cloud:
             return '{} uploaded successfully'.format(filename)
         except Exception as e:
             logger.error('cloud Error in uploading file: ', str(e))
-            return '<br>Failed to upload {}!</br>'.format(filename)
+            return '<b>Failed to upload {}!</b>'.format(filename)
         finally:
             if full_path != '':
                 os.remove(full_path)
@@ -75,7 +82,6 @@ class Cloud:
                         {'text': 'Delete', 'callback_data': '/c3 ' + args}],
                        [{'text': 'Cancel', 'callback_data': '/c4 ' + args}]]
             data['reply_markup'] = {'inline_keyboard': btn_lst}
-            return
 
     def cloud_cancel(self, data):
         if data.get('callback_query_id', -1) != -1:
@@ -102,3 +108,81 @@ class Cloud:
             self.fb.delete_file(args)
             data['method'] = ['editMessageText', 'answerCallbackQuery']
             data['text'] = '<s>{}</s> deleted successfully'.format(os.path.split(args)[1])
+
+    def pin(self, data):
+        data['method'] = 'sendMessage'
+        reply_msg_id = data.get('reply_msg_id', -1)
+        if reply_msg_id != -1:
+            args = data['args'].strip()
+            if (args != '' and not re.match('^[a-zA-Z0-9_-]+$', args)) or len(args) > 20:
+                data['text'] = 'Message name must be alphanumeric and within 20 characters!'.format(args)
+            else:
+                data['text'] = self.set_pin(args, data['from_id'], data['chat_id'], reply_msg_id)
+        else:
+            self.list_pin(data)
+
+    def set_pin(self, args, from_id, chat_id, reply_msg_id):
+        if args == '':
+            args = datetime.now().strftime('%Y%m%d%H%M%S%f')[:-3]
+        try:
+            self.fb.set_doc('pin', str(from_id), {args: '{}:{}'.format(chat_id, reply_msg_id)})
+            return 'Pinned message "{}" successfully'.format(args)
+        except Exception as e:
+            logger.error('cloud Error in pinning message: ', str(e))
+            return '<b>Failed to pin message "{}"!</b>'.format(args)
+
+    def list_pin(self, data):
+        from_id = str(data['from_id'])
+        doc = self.fb.get_doc('pin', from_id)
+        if doc is None or len(doc) == 0:
+            data['text'] = 'No pinned message'
+        else:
+            data['text'] = 'Pinned message:'
+            btn_lst = [[{'text': k, 'callback_data': '/p1 {}|{}|{}'.format(from_id, k, v)}]
+                       for k, v in doc.items()]
+            data['reply_markup'] = {'inline_keyboard': btn_lst}
+
+    def pin_select(self, data):
+        if data.get('callback_query_id', -1) != -1:
+            data['method'] = ['editMessageText', 'answerCallbackQuery']
+            args = data['args'].strip()
+            args_lst = args.split('|')
+            data['text'] = 'Pinned message:\n{}'.format(args_lst[1])
+            btn_lst = [[{'text': 'View', 'callback_data': '/p2 ' + args},
+                        {'text': 'Unpin', 'callback_data': '/p3 ' + args}],
+                       [{'text': 'Cancel', 'callback_data': '/p4 ' + args}]]
+            data['reply_markup'] = {'inline_keyboard': btn_lst}
+
+    def pin_cancel(self, data):
+        if data.get('callback_query_id', -1) != -1:
+            args = data['args'].strip()
+            args_lst = args.split('|')
+            data['method'] = ['editMessageText', 'answerCallbackQuery']
+            data['from_id'] = args_lst[0]
+            self.list_pin(data)
+
+    def pin_unpin(self, data):
+        if data.get('callback_query_id', -1) != -1:
+            args = data['args']
+            args_lst = args.split('|')
+            self.fb.delete_doc('pin', args_lst[0], args_lst[1])
+            data['method'] = ['editMessageText', 'answerCallbackQuery']
+            data['text'] = 'Unpinned message "{}"'.format(args_lst[1])
+
+    def pin_view(self, data):
+        if data.get('callback_query_id', -1) != -1:
+            args = data['args'].strip()
+            args_lst = args.split('|')
+            chat_id, reply_msg_id = args_lst[2].split(':')
+
+            send_msg_data = dict(data)
+            send_msg_data['method'] = 'sendMessage'
+            send_msg_data['text'] = '.'
+            send_msg_data['chat_id'] = int(chat_id)
+            send_msg_data['reply_msg_id'] = int(reply_msg_id)
+            callback_data = dict(data)
+            callback_data['method'] = 'answerCallbackQuery'
+            del_msg_data = dict(data)
+            del_msg_data['method'] = 'deleteMessage'
+
+            data['method'] = [send_msg_data, callback_data, del_msg_data]

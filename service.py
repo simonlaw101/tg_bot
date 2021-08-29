@@ -9,9 +9,10 @@ from uuid import uuid4
 try:
     import firebase_admin
     from firebase_admin import credentials
+    from firebase_admin import firestore
     from firebase_admin import storage
 except ImportError:
-    firebase_admin, credentials, storage = None, None, None
+    firebase_admin, credentials, firestore, storage = None, None, None, None
 
 try:
     import cfscrape
@@ -72,7 +73,8 @@ class TgService:
         elif data['message_text'].startswith(('/ocr', '/cloud')) and 'reply_to_message' in message_obj:
             file_id = self.get_file_id(message_obj['reply_to_message'])
             data['file_url'] = '' if file_id == '' else self.get_file_url(file_id)
-
+        elif data['message_text'].startswith('/pin') and 'reply_to_message' in message_obj:
+            data['reply_msg_id'] = message_obj['reply_to_message'].get('message_id', -1)
         return data
 
     def set_from(self, json_obj, data):
@@ -86,8 +88,11 @@ class TgService:
     def send_message(self, data):
         params = {'chat_id': data['chat_id'], 'text': data['text'], 'parse_mode': 'HTML'}
         message_id = data.get('message_id', -1)
+        reply_msg_id = data.get('reply_msg_id', -1)
         reply_markup = data.get('reply_markup')
-        if data['chat_id'] < 0 and message_id != -1:
+        if reply_msg_id != -1:
+            params['reply_to_message_id'] = reply_msg_id
+        elif data['chat_id'] < 0 and message_id != -1:
             params['reply_to_message_id'] = message_id
         if reply_markup is not None:
             params['reply_markup'] = json.dumps(reply_markup)
@@ -106,6 +111,10 @@ class TgService:
         if data['chat_id'] < 0 and message_id != -1:
             params['reply_to_message_id'] = message_id
         HttpService.post_json(self.API_URL + 'sendDocument', params)
+
+    def delete_message(self, data):
+        params = {'chat_id': data['chat_id'], 'message_id': data['message_id']}
+        HttpService.post_json(self.API_URL + 'deleteMessage', params)
 
     def get_file_id(self, message_obj):
         photo_list = message_obj.get('photo', [])
@@ -207,6 +216,19 @@ class FbService:
         bucket = storage.bucket()
         blob = bucket.blob(src_filename)
         return blob.generate_signed_url(timedelta(seconds=30), method='GET')
+
+    def get_doc(self, collection_name, doc_id):
+        db = firestore.client()
+        doc = db.collection(collection_name).document(doc_id).get()
+        return doc.to_dict()
+
+    def set_doc(self, collection_name, doc_id, data, merge=True):
+        db = firestore.client()
+        doc_ref = db.collection(collection_name).document(doc_id)
+        doc_ref.set(data, merge=merge)
+
+    def delete_doc(self, collection_name, doc_id, data_key, merge=True):
+        self.set_doc(collection_name, doc_id, {data_key: firestore.DELETE_FIELD}, merge)
 
 
 class HttpService:
