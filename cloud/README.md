@@ -1,6 +1,6 @@
 # Cloud
 
-It is a cloud service for file upload/download.
+It is a cloud service for file upload/download and pin message.
 
 ## How to use it
 
@@ -28,6 +28,8 @@ modules = [Cloud(bucket_name='YOUR_BUCKET_NAME')]
 1. "Send Media" and "Send Stickers & GIFs" permissions have to be enabled in group
 2. sending by URL in sendDocument will currently only work for gif, pdf and zip files
 3. bots can download files of up to 20MB in size for the moment
+4. if running on AWS Lambda, you may encounter firebase_admin module import issue<br/>
+https://simonlaw-9918.medium.com/troubleshooting-export-platform-specific-python-package-using-docker-f4f41685924b
 <br/><br/><br/><br/>
 
 Reference:
