@@ -19,8 +19,7 @@ class Bot:
                     'sendPhoto': self.tg.send_photo,
                     'sendGame': self.tg.send_game,
                     'answerInlineQuery': self.tg.answer_inline_query,
-                    'deleteMessage': self.tg.delete_message,
-                    'sendMultiMessage': self.send_multi_message}
+                    'deleteMessage': self.tg.delete_message}
         self.refresh_time = refresh
         self.check_freq = 10
         self.scheduler = sched.scheduler(time.time, time.sleep)
@@ -102,15 +101,14 @@ class Bot:
                 # self.send_maint_msg(data)  # maintenance
                 self.cmds[cmd](data)
 
-                methods = data.get('method')
+                methods = data.get('method', '')
                 if isinstance(methods, list):
                     for method in methods:
-                        if isinstance(method, dict):
-                            self.api.get(method['method'], lambda *args: None)(method)
-                        else:
-                            self.api.get(method, lambda *args: None)(data)
+                        self.api.get(method['method'], lambda *args: None)(method)
                 else:
-                    self.api.get(methods, lambda *args: None)(data)
+                    methods = methods.split(',')
+                    for method in methods:
+                        self.api.get(method.strip(), lambda *args: None)(data)
 
         except Exception as e:
             logger.exception('bot execute Exception: ' + str(e))
@@ -124,18 +122,13 @@ class Bot:
         data['text'] = ('The bot is currently unavailable due to maintenance.\n'
                         'We apologize for any inconvenience caused.')
 
-    def send_multi_message(self, data):
-        msgs = data.get('msgs', {})
-        for msg in msgs:
-            self.tg.send_message(msg)
-
     def set_freq(self, data):
         args = data['args'].strip()
         if args in ['-2', '-10']:
             self.check_freq = int(args) * -1
         elif args in ['2', '10', '60'] and data.get('callback_query_id', -1) != -1:
             self.check_freq = int(args)
-            data['method'] = ['editMessageText', 'answerCallbackQuery']
+            data['method'] = 'editMessageText, answerCallbackQuery'
             data['text'] = 'Check frequency: {} mins'.format(args)
         else:
             data['method'] = 'sendMessage'
@@ -147,7 +140,7 @@ class Bot:
     def help(self, data):
         args = data['args'].strip()
         if args in self.examples.keys() and data.get('callback_query_id', -1) != -1:
-            data['method'] = ['editMessageText', 'answerCallbackQuery']
+            data['method'] = 'editMessageText, answerCallbackQuery'
             data['text'] = self.examples[args]
         else:
             data['method'] = 'sendMessage'

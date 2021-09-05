@@ -75,7 +75,7 @@ class Cloud:
 
     def cloud_select(self, data):
         if data.get('callback_query_id', -1) != -1:
-            data['method'] = ['editMessageText', 'answerCallbackQuery']
+            data['method'] = 'editMessageText, answerCallbackQuery'
             args = data['args'].strip()
             data['text'] = 'Cloud Storage:\n{}'.format(os.path.split(args)[1])
             btn_lst = [[{'text': 'Download', 'callback_data': '/c2 ' + args},
@@ -86,7 +86,7 @@ class Cloud:
     def cloud_cancel(self, data):
         if data.get('callback_query_id', -1) != -1:
             args = data['args'].strip()
-            data['method'] = ['editMessageText', 'answerCallbackQuery']
+            data['method'] = 'editMessageText, answerCallbackQuery'
             data['from_id'] = os.path.split(args)[0]
             self.list_file(data)
 
@@ -94,11 +94,11 @@ class Cloud:
         if data.get('callback_query_id', -1) != -1:
             args = data['args'].strip()
             if os.path.splitext(args)[1].lower() in ['.gif', '.jpg', '.jpeg', '.png']:
-                data['method'] = ['sendPhoto', 'answerCallbackQuery', 'editMessageText']
+                data['method'] = 'sendPhoto, answerCallbackQuery, editMessageText'
                 data['text'] = '{} downloaded successfully'.format(os.path.split(args)[1])
                 data['photo'] = self.fb.get_file_url(args)
             else:
-                data['method'] = ['sendDocument', 'answerCallbackQuery', 'editMessageText']
+                data['method'] = 'sendDocument, answerCallbackQuery, editMessageText'
                 data['text'] = '{} downloaded successfully'.format(os.path.split(args)[1])
                 data['document'] = self.fb.get_file_url(args)
 
@@ -106,7 +106,7 @@ class Cloud:
         if data.get('callback_query_id', -1) != -1:
             args = data['args']
             self.fb.delete_file(args)
-            data['method'] = ['editMessageText', 'answerCallbackQuery']
+            data['method'] = 'editMessageText, answerCallbackQuery'
             data['text'] = '<s>{}</s> deleted successfully'.format(os.path.split(args)[1])
 
     def pin(self, data):
@@ -144,7 +144,7 @@ class Cloud:
 
     def pin_select(self, data):
         if data.get('callback_query_id', -1) != -1:
-            data['method'] = ['editMessageText', 'answerCallbackQuery']
+            data['method'] = 'editMessageText, answerCallbackQuery'
             args = data['args'].strip()
             args_lst = args.split('|')
             data['text'] = 'Pinned message:\n{}'.format(args_lst[1])
@@ -157,7 +157,7 @@ class Cloud:
         if data.get('callback_query_id', -1) != -1:
             args = data['args'].strip()
             args_lst = args.split('|')
-            data['method'] = ['editMessageText', 'answerCallbackQuery']
+            data['method'] = 'editMessageText, answerCallbackQuery'
             data['from_id'] = args_lst[0]
             self.list_pin(data)
 
@@ -166,7 +166,7 @@ class Cloud:
             args = data['args']
             args_lst = args.split('|')
             self.fb.delete_doc('pin', args_lst[0], args_lst[1])
-            data['method'] = ['editMessageText', 'answerCallbackQuery']
+            data['method'] = 'editMessageText, answerCallbackQuery'
             data['text'] = 'Unpinned message "{}"'.format(args_lst[1])
 
     def pin_view(self, data):

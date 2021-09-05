@@ -73,7 +73,7 @@ class FxStock:
     # s command
     def get_stk(self, data):
         if data.get('callback_query_id', -1) != -1:
-            data['method'] = ['editMessageText', 'answerCallbackQuery']
+            data['method'] = 'editMessageText, answerCallbackQuery'
             data['text'] = self.get_stock_detail(data['args'])
             return
         data['method'] = 'sendMessage'
@@ -174,7 +174,7 @@ class FxStock:
     # c command
     def get_fx(self, data):
         if data.get('callback_query_id', -1) != -1:
-            data['method'] = ['editMessageText', 'answerCallbackQuery']
+            data['method'] = 'editMessageText, answerCallbackQuery'
             data['text'] = ''.join(['{} - {}\n'.format(k, v) for k, v in Constant.CCY_DCT.items()])
             return
         data['method'] = 'sendMessage'
@@ -222,7 +222,7 @@ class FxStock:
     # i command
     def get_idx(self, data):
         if data.get('callback_query_id', -1) != -1:
-            data['method'] = ['editMessageText', 'answerCallbackQuery']
+            data['method'] = 'editMessageText, answerCallbackQuery'
             data['text'] = ''.join(['{} - {}\n'.format(k, v) for k, v in Constant.IDX_DCT_NO_PREFIX.items()])
             return
         data['method'] = 'sendMessage'
@@ -534,6 +534,7 @@ class FxStock:
                 word = {'&lt': 'lower', '&gt': 'higher'}[operators]
                 msg_text = '<b>Hi {},\n{} {} is now {},\n{} than {}</b>'.format(name, code_text, desc, current, word,
                                                                                 amount)
+                msg['method'] = 'sendMessage'
                 msg['text'] = msg_text
                 msg['chat_id'] = chat_id
                 msgs.append(msg)
@@ -545,5 +546,4 @@ class FxStock:
                     self.email_service.send_email(subject, msg_text)
 
         if len(msgs) != 0:
-            data['method'] = 'sendMultiMessage'
-            data['msgs'] = msgs
+            data['method'] = msgs
