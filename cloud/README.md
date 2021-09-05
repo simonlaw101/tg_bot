@@ -24,6 +24,9 @@ from cloud import Cloud
 modules = [Cloud(bucket_name='YOUR_BUCKET_NAME')]
 ```
 
+### 3. Create a collection named "pin" in Firestore Database
+
+
 ### Note:
 1. "Send Media" and "Send Stickers & GIFs" permissions have to be enabled in group
 2. sending by URL in sendDocument will currently only work for gif, pdf and zip files
