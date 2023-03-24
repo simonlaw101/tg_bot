@@ -42,6 +42,9 @@ steps: https://medium.com/@simonlaw_9918/stock-tracking-telegram-bot-21be907c70e
 ### 5. Deploy to AWS Lambda + API Gateway (Optional)
 steps: https://simonlaw-9918.medium.com/stock-tracking-telegram-bot-2-8141f80c065c
 
+set up EventBridge Scheduler and Firestore (refer to cloud README) for alert function
+https://medium.com/@gomk888/telegram-bot-3-set-up-eventbridge-scheduler-6bb09de74bcb
+
 ### 6. Set bot commands and enable inline query (Optional)
 https://core.telegram.org/bots/api#setmycommands
 

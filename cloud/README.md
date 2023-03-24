@@ -16,16 +16,35 @@ pip3 install firebase-admin
 Replace serviceAccountKey.json with your key</br>
 https://firebase.google.com/docs/admin/setup#initialize-sdk
 
+###
+### For Cloud module:
 ### 2. Fill in the config
 
-Import Cloud module and fill in the bucket name in main.py
+Import Cloud & FbService module, and fill in the bucket name in main.py
 ```
 from cloud import Cloud
-modules = [Cloud(bucket_name='YOUR_BUCKET_NAME')]
+from service import FbService
+
+fb = FbService('YOUR_BUCKET_NAME')
+modules = [Cloud(fb)]
 ```
 
 ### 3. Create a collection named "pin" in Firestore Database
 
+###
+### For FxStock module deployed to AWS:
+### 2. Fill in the config
+
+Import FxStock & FbService module, and fill in the bucket name in lambda_function.py
+```
+from fxstock import FxStock
+from service import FbService
+
+fb = FbService('YOUR_BUCKET_NAME')
+modules = [FxStock(fb)]
+```
+
+### 3. Create a collection named "alert" in Firestore Database
 
 ### Note:
 1. "Send Media" and "Send Stickers & GIFs" permissions have to be enabled in group

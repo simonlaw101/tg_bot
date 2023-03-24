@@ -1,0 +1,8 @@
+{
+    "scheduled_cmds": [
+        {
+            "cmd": "check",
+            "data": {}
+        }
+    ]
+}
