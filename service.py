@@ -221,6 +221,29 @@ class FbService:
         blob = bucket.blob(src_filename)
         return blob.generate_signed_url(timedelta(seconds=30), method='GET')
 
+    def add_doc(self, collection_name, data):
+        db = firestore.client()
+        update_time, doc_ref = db.collection(collection_name).add(data)
+        return doc_ref.id
+
+    def query_doc(self, collection_name, field, operator, value):
+        db = firestore.client()
+        docs = db.collection(collection_name).where(field, operator, value).get()
+        return [{'doc_id': doc.id, **doc.to_dict()} for doc in docs]
+
+    def compound_query_doc(self, collection_name, *conditions):
+        db = firestore.client()
+        docs = db.collection(collection_name)
+        for condition in conditions:
+            docs = docs.where(condition[0], condition[1], condition[2])
+        docs = docs.get()
+        return [{'doc_id': doc.id, **doc.to_dict()} for doc in docs]
+
+    def get_all_doc(self, collection_name):
+        db = firestore.client()
+        docs = db.collection(collection_name).stream()
+        return [{'doc_id': doc.id, **doc.to_dict()} for doc in docs]
+
     def get_doc(self, collection_name, doc_id):
         db = firestore.client()
         doc = db.collection(collection_name).document(doc_id).get()
@@ -230,6 +253,10 @@ class FbService:
         db = firestore.client()
         doc_ref = db.collection(collection_name).document(doc_id)
         doc_ref.set(data, merge=merge)
+
+    def delete_doc_by_id(self, collection_name, doc_id):
+        db = firestore.client()
+        db.collection(collection_name).document(doc_id).delete()
 
     def delete_doc(self, collection_name, doc_id, data_key, merge=True):
         self.set_doc(collection_name, doc_id, {data_key: firestore.DELETE_FIELD}, merge)

@@ -2,7 +2,7 @@ import logging
 from bs4 import BeautifulSoup
 
 from constant import Constant
-from service import HttpService
+from service import FbService, HttpService
 from util import JsonUtil, NumberUtil
 
 try:
@@ -19,7 +19,7 @@ logger = logging.getLogger('FxStock')
 
 
 class FxStock:
-    def __init__(self, lambda_mode=False, send_email=False):
+    def __init__(self, db=None, send_email=False):
         self.email_service = Email() if send_email else None
         self.cmds = {'s': self.get_stk,
                      'c': self.get_fx,
@@ -38,14 +38,9 @@ class FxStock:
                          'i': Constant.I_EXAMPLE,
                          'alert': Constant.ALERT_EXAMPLE,
                          'reset': Constant.RESET_EXAMPLE}
+        self.lambda_mode = type(db) is FbService
+        self.db = db if self.lambda_mode else DB()
 
-        if lambda_mode:
-            cmd_lst = ['s', 'c', 'i', 'query']
-            self.cmds = {cmd: self.cmds[cmd] for cmd in cmd_lst}
-            self.desc = {cmd: self.desc[cmd] for cmd in cmd_lst if cmd in self.desc}
-            self.examples = {cmd: self.examples[cmd] for cmd in cmd_lst if cmd in self.examples}
-        else:
-            self.db = DB()
 
     # query command
     def query(self, data):
@@ -289,9 +284,13 @@ class FxStock:
 
     def view_alert(self, data):
         from_id = data['from_id']
-        sql = 'SELECT * FROM alerts WHERE fromid=?'
-        param = (from_id,)
-        rows = self.db.execute(sql, param)
+        if self.lambda_mode:
+            docs = self.db.query_doc('alert', 'from_id', '==', from_id)
+            rows = [(d['from_id'], d['name'], d['types'], d['code'], d['operators'], d['amount'], d['chatid']) for d in docs]
+        else:
+            sql = 'SELECT * FROM alerts WHERE fromid=?'
+            param = (from_id,)
+            rows = self.db.execute(sql, param)
         if len(rows) == 0:
             return '<b>No alert set.</b>'
         else:
@@ -405,15 +404,36 @@ class FxStock:
                 'amount': str(float(amount))}
 
     def set_alert(self, data, param):
-        sql = 'REPLACE INTO alerts(fromid,name,types,code,operators,amount,chatid) VALUES(?,?,?,?,?,?,?)'
-        param = (data['from_id'],
-                 data['sender_name'],
-                 param['types'],
-                 param['code'],
-                 param['operators'],
-                 param['amount'],
-                 data['chat_id'])
-        self.db.execute(sql, param)
+        if self.lambda_mode:
+            from_id = data['from_id']
+            types = param['types']
+            code = param['code']
+            operators = param['operators']
+            db_data = {'from_id': from_id,
+                       'name': data['sender_name'],
+                       'types': types,
+                       'code': code,
+                       'operators': operators,
+                       'amount': param['amount'],
+                       'chatid': data['chat_id']}
+            docs = self.db.compound_query_doc('alert', ('from_id', '==', from_id),
+                                                       ('types', '==', types),
+                                                       ('code', '==', code),
+                                                       ('operators', '==', operators))
+            if len(docs) > 0:
+                self.db.set_doc('alert', docs[0]['doc_id'], db_data)
+            else:
+                self.db.add_doc('alert', db_data)
+        else:
+            sql = 'REPLACE INTO alerts(fromid,name,types,code,operators,amount,chatid) VALUES(?,?,?,?,?,?,?)'
+            param = (data['from_id'],
+                     data['sender_name'],
+                     param['types'],
+                     param['code'],
+                     param['operators'],
+                     param['amount'],
+                     data['chat_id'])
+            self.db.execute(sql, param)
 
     # reset command
     def reset(self, data):
@@ -428,14 +448,21 @@ class FxStock:
 
     def reset_all(self, data):
         from_id = data['from_id']
-        sql = 'DELETE FROM alerts WHERE fromid=?'
-        param = (from_id,)
-        self.db.execute(sql, param)
+        if self.lambda_mode:
+            docs = self.db.query_doc('alert', 'from_id', '==', from_id)
+            for doc in docs:
+                self.db.delete_doc_by_id('alert', doc['doc_id'])
+        else:
+            sql = 'DELETE FROM alerts WHERE fromid=?'
+            param = (from_id,)
+            self.db.execute(sql, param)
         return '<b>Hi {}, you have cleared all alerts.</b>'.format(data.get('sender_name', ''))
 
     def verify_reset(self, data):
         args = data['args'].strip()
-        code = args.upper()
+        end_idx = args.find(' ')
+        end_idx = len(args) if end_idx < 0 else end_idx
+        code = args[:end_idx].upper()
         err_msg = Constant.RESET_ERR_MSG
 
         if code in Constant.CCY_DCT.keys():
@@ -482,8 +509,6 @@ class FxStock:
         from_id = data['from_id']
         types = reset_param['types']
         code = reset_param['code']
-        select_sql = 'SELECT * FROM alerts WHERE fromid=? and types=? and code=?'
-        delete_sql = 'DELETE FROM alerts WHERE fromid=? and types=? and code=?'
         param = (from_id, types, code)
         sender_name = data.get('sender_name', '')
 
@@ -495,20 +520,35 @@ class FxStock:
         elif types == 'IDX':
             code_text = code_text.replace('%5E', '')
 
-        rows = self.db.execute(select_sql, param)
+        if self.lambda_mode:
+            rows = self.db.compound_query_doc('alert', ('from_id', '==', from_id),
+                                                       ('types', '==', types),
+                                                       ('code', '==', code))
+        else:
+            select_sql = 'SELECT * FROM alerts WHERE fromid=? and types=? and code=?'
+            rows = self.db.execute(select_sql, param)
         if len(rows) == 0:
             return '<b>Hi {}, you do not have alerts on {} {}</b>'.format(sender_name, desc, code_text)
         else:
-            self.db.execute(delete_sql, param)
+            if self.lambda_mode:
+                for doc in rows:
+                    self.db.delete_doc_by_id('alert', doc['doc_id'])
+            else:
+                delete_sql = 'DELETE FROM alerts WHERE fromid=? and types=? and code=?'
+                self.db.execute(delete_sql, param)
             return '<b>Hi {}, you have cleared alerts on {} {}</b>'.format(sender_name, desc, code_text)
 
     # check command
     def check(self, data):
-        select_sql = 'SELECT * FROM alerts'
-        rows = self.db.execute(select_sql)
+        if self.lambda_mode:
+            docs = self.db.get_all_doc('alert')
+            rows = [(d['from_id'], d['name'], d['types'], d['code'], d['operators'], d['amount'], d['chatid'], d['doc_id']) for d in docs]
+        else:
+            select_sql = 'SELECT * FROM alerts'
+            rows = self.db.execute(select_sql)
         msgs = []
         for row in rows:
-            from_id, name, types, code, operators, amount, chat_id = row
+            from_id, name, types, code, operators, amount, chat_id, doc_id = row
             amount = float(amount)
 
             current = -1
@@ -538,9 +578,13 @@ class FxStock:
                 msg['text'] = msg_text
                 msg['chat_id'] = chat_id
                 msgs.append(msg)
-                delete_sql = 'DELETE FROM alerts WHERE fromid=? AND types=? AND code=? AND operators=?'
-                param = (from_id, types, code, operators)
-                self.db.execute(delete_sql, param)
+
+                if self.lambda_mode:
+                    self.db.delete_doc_by_id('alert', doc_id)
+                else:
+                    delete_sql = 'DELETE FROM alerts WHERE fromid=? AND types=? AND code=? AND operators=?'
+                    param = (from_id, types, code, operators)
+                    self.db.execute(delete_sql, param)
                 if self.email_service:
                     subject = '{} {} notice to {}'.format(code_text, desc, name)
                     self.email_service.send_email(subject, msg_text)

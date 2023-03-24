@@ -12,7 +12,7 @@ logger = logging.getLogger('FxStock')
 
 
 class Cloud:
-    def __init__(self, bucket_name):
+    def __init__(self, db):
         self.cmds = {'cloud': self.cloud,
                      'c1': self.cloud_select,
                      'c2': self.cloud_download,
@@ -27,7 +27,7 @@ class Cloud:
                      'pin': 'pin message'}
         self.examples = {'cloud': Constant.CLOUD_EXAMPLE,
                          'pin': Constant.PIN_EXAMPLE}
-        self.fb = FbService(bucket_name)
+        self.fb = db
 
     def cloud(self, data):
         data['method'] = 'sendMessage'
