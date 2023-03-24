@@ -542,13 +542,14 @@ class FxStock:
     def check(self, data):
         if self.lambda_mode:
             docs = self.db.get_all_doc('alert')
-            rows = [(d['from_id'], d['name'], d['types'], d['code'], d['operators'], d['amount'], d['chatid'], d['doc_id']) for d in docs]
+            rows = [(d['from_id'], d['name'], d['types'], d['code'], d['operators'], d['amount'], d['chatid']) for d in docs]
+            doc_ids = [d['doc_id'] for d in docs]
         else:
             select_sql = 'SELECT * FROM alerts'
             rows = self.db.execute(select_sql)
         msgs = []
-        for row in rows:
-            from_id, name, types, code, operators, amount, chat_id, doc_id = row
+        for i, row in enumerate(rows):
+            from_id, name, types, code, operators, amount, chat_id = row
             amount = float(amount)
 
             current = -1
@@ -580,7 +581,7 @@ class FxStock:
                 msgs.append(msg)
 
                 if self.lambda_mode:
-                    self.db.delete_doc_by_id('alert', doc_id)
+                    self.db.delete_doc_by_id('alert', doc_ids[i])
                 else:
                     delete_sql = 'DELETE FROM alerts WHERE fromid=? AND types=? AND code=? AND operators=?'
                     param = (from_id, types, code, operators)

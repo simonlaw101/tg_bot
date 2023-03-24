@@ -111,21 +111,22 @@ class Cloud:
 
     def pin(self, data):
         data['method'] = 'sendMessage'
-        reply_msg_id = data.get('reply_msg_id', -1)
-        if reply_msg_id != -1:
+        reply_msg_text = data.get('reply_msg_text', '')
+        if reply_msg_text != '':
             args = data['args'].strip()
+            reply_msg_text = reply_msg_text.translate({ord(c): '' for c in '^;/<>\\|`'})
             if (args != '' and not re.match('^[a-zA-Z0-9_-]+$', args)) or len(args) > 20:
                 data['text'] = 'Message name must be alphanumeric and within 20 characters!'.format(args)
             else:
-                data['text'] = self.set_pin(args, data['from_id'], data['chat_id'], reply_msg_id)
+                data['text'] = self.set_pin(args, data['from_id'], reply_msg_text)
         else:
             self.list_pin(data)
 
-    def set_pin(self, args, from_id, chat_id, reply_msg_id):
+    def set_pin(self, args, from_id, reply_msg_text):
         if args == '':
             args = datetime.now().strftime('%Y%m%d%H%M%S%f')[:-3]
         try:
-            self.fb.set_doc('pin', str(from_id), {args: '{}:{}'.format(chat_id, reply_msg_id)})
+            self.fb.set_doc('pin', str(from_id), {args: reply_msg_text})
             return 'Pinned message "{}" successfully'.format(args)
         except Exception as e:
             logger.error('cloud Error in pinning message: ', str(e))
@@ -138,8 +139,8 @@ class Cloud:
             data['text'] = 'No pinned message'
         else:
             data['text'] = 'Pinned message:'
-            btn_lst = [[{'text': k, 'callback_data': '/p1 {}|{}|{}'.format(from_id, k, v)}]
-                       for k, v in doc.items()]
+            btn_lst = [[{'text': k, 'callback_data': '/p1 {}|{}'.format(from_id, k)}]
+                       for k in doc.keys()]
             data['reply_markup'] = {'inline_keyboard': btn_lst}
 
     def pin_select(self, data):
@@ -172,17 +173,9 @@ class Cloud:
     def pin_view(self, data):
         if data.get('callback_query_id', -1) != -1:
             args = data['args'].strip()
-            args_lst = args.split('|')
-            chat_id, reply_msg_id = args_lst[2].split(':')
+            from_id, tag = args.split('|')
 
-            send_msg_data = dict(data)
-            send_msg_data['method'] = 'sendMessage'
-            send_msg_data['text'] = '.'
-            send_msg_data['chat_id'] = int(chat_id)
-            send_msg_data['reply_msg_id'] = int(reply_msg_id)
-            callback_data = dict(data)
-            callback_data['method'] = 'answerCallbackQuery'
-            del_msg_data = dict(data)
-            del_msg_data['method'] = 'deleteMessage'
-
-            data['method'] = [send_msg_data, callback_data, del_msg_data]
+            data['method'] = 'editMessageText, answerCallbackQuery'
+            doc = self.fb.get_doc('pin', from_id)
+            if doc is not None and len(doc) > 0:
+                data['text'] = 'Pinned message "{}":\n{}'.format(tag, doc.get(tag, ''))
