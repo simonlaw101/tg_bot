@@ -12,6 +12,7 @@ logger = logging.getLogger('FxStock')
 class Bot:
     def __init__(self, token, modules, refresh=0.2):
         self.tg = TgService(token)
+        self.bot_tag = '@' + self.tg.get_bot_username()
         self.api = {'sendMessage': self.tg.send_message,
                     'answerCallbackQuery': self.tg.answer_callback_query,
                     'editMessageText': self.tg.edit_message_text,
@@ -87,6 +88,8 @@ class Bot:
         data = self.tg.get_data(json_obj)
         message_text = data['message_text']
         if message_text.startswith('/'):
+            if self.bot_tag in message_text:
+                message_text = message_text.replace(self.bot_tag, '')
             end_idx = len(message_text) if message_text.find(' ') < 0 else message_text.find(' ')
             cmd = message_text[1:end_idx]
             data['args'] = message_text[end_idx + 1:]
