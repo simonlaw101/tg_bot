@@ -185,6 +185,10 @@ class TgService:
             params['reply_markup'] = json.dumps(reply_markup)
         HttpService.post_json(self.API_URL + 'sendGame', params)
 
+    def get_bot_username(self):
+        json_resp = HttpService.post_json(self.API_URL + 'getMe')
+        return json_resp.get('result', {}).get('username', '')
+
 
 class FbService:
     def __init__(self, bucket_name):
