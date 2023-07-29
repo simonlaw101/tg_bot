@@ -18,30 +18,29 @@ https://firebase.google.com/docs/admin/setup#initialize-sdk
 
 ###
 ### For Cloud module:
-### 2. Fill in the config
+### 2. Update the config
 
-Import Cloud & FbService module, and fill in the bucket name in main.py
+Enable Cloud module and fill in the bucket name
+
+config.ini:
 ```
-from cloud import Cloud
-from service import FbService
-
-fb = FbService('YOUR_BUCKET_NAME')
-modules = [Cloud(fb)]
+cloud_module = on
+fb_bucket_name = YOUR_BUCKET_NAME
 ```
 
 ### 3. Create a collection named "pin" in Firestore Database
 
 ###
 ### For FxStock module deployed to AWS:
-### 2. Fill in the config
+### 2. Update the config
 
-Import FxStock & FbService module, and fill in the bucket name in lambda_function.py
+Enable FxStock module & cloud database, and fill in the bucket name
+
+config.ini:
 ```
-from fxstock import FxStock
-from service import FbService
-
-fb = FbService('YOUR_BUCKET_NAME')
-modules = [FxStock(fb)]
+fxstock_module = on
+cloud_db = on
+fb_bucket_name = YOUR_BUCKET_NAME
 ```
 
 ### 3. Create a collection named "alert" in Firestore Database

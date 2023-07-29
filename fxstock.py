@@ -19,8 +19,9 @@ logger = logging.getLogger('FxStock')
 
 
 class FxStock:
-    def __init__(self, db=None, send_email=False):
+    def __init__(self, db=None, send_email=False, stock_info_lang='en'):
         self.email_service = Email() if send_email else None
+        self.stock_info_lang = stock_info_lang
         self.cmds = {'s': self.get_stk,
                      'c': self.get_fx,
                      'i': self.get_idx,
@@ -103,7 +104,8 @@ class FxStock:
 
     def get_stock_info(self, code):
         code = '{}.HK'.format(code.zfill(4)) if code.isnumeric() else code
-        url = 'https://finance.yahoo.com/quote/{}/'.format(code)
+        url = 'https://finance.yahoo.com/quote/{}'.format(code)
+        url = url + '?region=HK&lang=zh-Hant-HK' if self.stock_info_lang == 'zh' else url
         headers = {'User-Agent': ''}
         page = HttpService.get(url, headers)
         soup = BeautifulSoup(page.content, 'html.parser')
@@ -163,7 +165,8 @@ class FxStock:
         json_obj.bulkTradeQty = '' if str(qty_price) == '' else qty_price.split('-')[0]
         json_obj.bulkTradePrice = '' if str(qty_price) == '' else qty_price.split('-')[1]
 
-        return Constant.STK_DETAIL_TEMPLATE_ENG.format(s=json_obj)
+        template = Constant.STK_DETAIL_TEMPLATE_CHI if self.stock_info_lang == 'zh' else Constant.STK_DETAIL_TEMPLATE_ENG
+        return template.format(s=json_obj)
 
     # c command
     def get_fx(self, data):

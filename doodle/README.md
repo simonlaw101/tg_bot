@@ -40,12 +40,14 @@ var firebaseConfig = {
 ### 2. Host the web page on GitHub
 https://pages.github.com/
 
-### 3. Fill in the config
-Import Doodle module and fill in the url in main.py</br>
+### 3. Update the config
+Enable Doodle module and fill in the url</br>
 e.g. https://username.github.io
+
+config.ini:
 ```
-from doodle import Doodle
-modules = [Doodle(url='YOUR_URL')]
+doodle_module = on
+doodle_url = YOUR_URL
 ```
 
 ### 4. Create a game via BotFather
