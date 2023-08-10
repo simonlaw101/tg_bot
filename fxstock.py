@@ -1,4 +1,5 @@
 import logging
+import re
 from bs4 import BeautifulSoup
 
 from constant import Constant
@@ -210,11 +211,16 @@ class FxStock:
         url = 'https://www.x-rates.com/calculator/?from={}&to={}&amount={}'.format(ccy.upper(), ccy2.upper(), amount)
         page = HttpService.get(url)
         soup = BeautifulSoup(page.content, 'html.parser')
-        ele = soup.find('span', {'class': 'ccOutputTrail'})
+        ele = soup.find('span', {'class': 'ccOutputRslt'})
         if ele is None:
             logger.error('xrates is not available!')
             return '-1'
-        return ele.previous_sibling.replace(',', '') + ele.get_text(strip=True)
+        text = ele.get_text(strip=True).replace(',', '')
+        decimal_lst = re.findall('\d+[.]?\d+', text)
+        if len(decimal_lst) == 0:
+            logger.error('xrates not found in text: {}'.format(text))
+            return '-1'
+        return decimal_lst[0]
 
     # i command
     def get_idx(self, data):
