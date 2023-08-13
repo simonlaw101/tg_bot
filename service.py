@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import os
@@ -53,6 +54,7 @@ class TgService:
             self.set_from(callback_query_obj, data)
             data['callback_query_id'] = callback_query_obj.get('id', -1)
             data['inline_message_id'] = callback_query_obj.get('inline_message_id', -1)
+            data['callback_msg_text'] = message_obj.get('text', '')
             if 'game_short_name' in callback_query_obj:
                 message_obj['text'] = '/'+callback_query_obj['game_short_name']
             else:
@@ -189,6 +191,19 @@ class TgService:
         json_resp = HttpService.post_json(self.API_URL + 'getMe')
         return json_resp.get('result', {}).get('username', '')
 
+    def send_poll(self, data):
+        params = {'chat_id': data['chat_id'], 'type': data['type'], 'question': data['question'],
+                  'options': json.dumps(data['options']), 'correct_option_id': data['correct_option_id'],
+                  'explanation': data['explanation'], 'is_anonymous': data['is_anonymous'],
+                  'close_date': data['close_date'], 'explanation_parse_mode': 'HTML'}
+        message_id = data.get('message_id', -1)
+        reply_markup = data.get('reply_markup')
+        if data['chat_id'] < 0 and message_id != -1:
+            params['reply_to_message_id'] = message_id
+        if reply_markup is not None:
+            params['reply_markup'] = json.dumps(reply_markup)
+        HttpService.post_json(self.API_URL + 'sendPoll', params)
+
 
 class FbService:
     def __init__(self, bucket_name):
@@ -276,6 +291,14 @@ class HttpService:
             return None
 
     @staticmethod
+    def get_json(url, headers=None):
+        try:
+            return requests.get(url, headers=headers).json()
+        except Exception as e:
+            logger.exception('httpservice get_json Exception: '+str(e))
+            return None
+
+    @staticmethod
     def post_json(url, params=None, headers=None):
         try:
             resp = requests.post(url, data=params, headers=headers)
@@ -293,3 +316,20 @@ class HttpService:
         except Exception as e:
             logger.exception('httpservice cf_get_json Exception: '+str(e))
             return {}
+
+    @staticmethod
+    def async_post_json(url, params_lst):
+        try:
+            loop = asyncio.get_event_loop()
+            responses = loop.run_until_complete(HttpService.get_post_data(url, params_lst))
+            return [response.json() for response in responses]
+        except Exception as e:
+            logger.exception('httpservice async_post_json Exception: '+str(e))
+            return []
+
+    @staticmethod
+    async def get_post_data(url, params_lst):
+        loop = asyncio.get_event_loop()
+        tasks = [loop.run_in_executor(None, requests.post, url, params) for params in params_lst]
+        responses = await asyncio.gather(*tasks)
+        return responses

@@ -8,6 +8,7 @@ from bot import Bot
 from cloud import Cloud
 from doodle import Doodle
 from fxstock import FxStock
+from japanese import Japanese
 from ocr import Ocr
 from service import FbService
 
@@ -32,6 +33,9 @@ if config[env].getboolean('ocr_module'):
     modules.append(Ocr(ocr_api_key) if ocr_api_key else Ocr())
 if config[env].getboolean('doodle_module'): modules.append(Doodle(config[env].get('doodle_url')))
 if cloud_module: modules.append(Cloud(fb))
+if config[env].getboolean('japanese_module'):
+    modules.append(Japanese(config[env].get('kanji_api_key'), config[env].get('jpn_module_lang'),
+                            config[env].get('translate_api_key')))
 
 logger = logging.getLogger('FxStock')
 logger.setLevel(logging.DEBUG)
