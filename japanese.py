@@ -38,6 +38,7 @@ class Japanese:
         send_poll_data['options'] = quiz_data['options']
         send_poll_data['correct_option_id'] = quiz_data['correct_option_id']
         send_poll_data['explanation'] = quiz_data['explanation']
+        # tg API doc: at least 5s and no more than 600s in the future
         send_poll_data['close_date'] = int(time.time()) + 30
         data['method'] = [callback_data, del_msg_data, send_poll_data]
 
@@ -49,11 +50,13 @@ class Japanese:
                            self.jpn_module_lang: en_or_zh})
         correct_option_id = random.randint(0, len(vocabs)-1)
         random.shuffle(vocabs)
-        options = [vocab[self.jpn_module_lang] for vocab in vocabs]
         answer_vocab = vocabs[correct_option_id]
+        quiz_type = random.randint(1, 2)
+        question = answer_vocab['furigana'] if quiz_type == 1 else answer_vocab[self.jpn_module_lang]
+        options = [vocab[self.jpn_module_lang] if quiz_type == 1 else vocab['furigana'] for vocab in vocabs]
         explanation = '[{}]\n<b>{}</b>\n{}'.format(answer_vocab['furigana'],
                                                    answer_vocab['ja'], answer_vocab[self.jpn_module_lang])
-        return {'question': answer_vocab['furigana'], 'options': options,
+        return {'question': question, 'options': options,
                 'correct_option_id': correct_option_id, 'explanation': explanation}
 
     def get_jpn_vocab(self, data):
