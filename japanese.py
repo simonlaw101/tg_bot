@@ -1,7 +1,10 @@
 import logging
+import os
 import random
 import re
+import tempfile
 import time
+from base64 import decodebytes
 from bs4 import BeautifulSoup
 
 from constant import Constant
@@ -12,35 +15,71 @@ logger = logging.getLogger('FxStock')
 
 class Japanese:
     def __init__(self, kanji_api_key, jpn_module_lang='en', translate_api_key=None):
-        self.cmds = {'kana': self.get_jpn_vocab, 'k1': self.start_quiz, 'kanji': self.search_kanji}
-        self.desc = {'kana': 'get random japanese vocabulary', 'kanji': 'search a kanji'}
-        self.examples = {'kana': Constant.KANA_EXAMPLE, 'kanji': Constant.KANJI_EXAMPLE}
+        self.cmds = {'kana': self.get_jpn_vocab, 'k1': self.start_quiz, 'k2': self.show_furigana,
+                     'k3': self.hide_furigana, 'k4': self.delete_audio, 'kanji': self.search_kanji,
+                     'tts': self.text_to_speech}
+        self.desc = {'kana': 'get random japanese vocabulary', 'kanji': 'search a kanji',
+                     'tts': 'convert japanese text to audio'}
+        self.examples = {'kana': Constant.KANA_EXAMPLE, 'kanji': Constant.KANJI_EXAMPLE, 'tts': Constant.TTS_EXAMPLE}
         self.random_jpn_url = 'https://www.coolgenerator.com/random-japanese-words-generator'
         self.translate_url = 'https://translation.googleapis.com/language/translate/v2'
         self.translate_api_key = translate_api_key
         self.kanji_url = 'https://kanjialive-api.p.rapidapi.com/api/public/kanji/{}'
         self.kanji_api_key = kanji_api_key
         self.jpn_module_lang = jpn_module_lang
+        self.tts_url = 'https://texttospeech.googleapis.com/v1/text:synthesize'
 
     def start_quiz(self, data):
         callback_data = dict(data)
         callback_data['method'] = 'answerCallbackQuery'
         del_msg_data = dict(data)
         del_msg_data['method'] = 'deleteMessage'
+        data['method'] = [callback_data, del_msg_data]
+
+        quiz_data = self.generate_quiz(data['callback_msg_text'])
+        if quiz_data['quiz_type'] == 'listening':
+            try:
+                byte_str = self.google_text_to_speech(quiz_data['question'], 'ja-JP')
+                if byte_str == '':
+                    raise ValueError('Error in google text to speech API!')
+                audio_data = dict(data)
+                with tempfile.NamedTemporaryFile(suffix='.mp3', mode='wb', delete=False) as f:
+                    full_path = f.name
+                    f.write(decodebytes(byte_str.encode('utf-8')))
+
+                    audio_data['method'] = 'sendAudio'
+                    audio_data['title'] = 'Click to listen'
+                    audio_data['audio'] = open(full_path, 'rb')
+                    btn_lst = [[{'text': 'Show furigana', 'callback_data': '/k2 {}'.format(quiz_data['question'])}],
+                               [{'text': 'Delete Audio', 'callback_data': '/k4'}]]
+                    audio_data['reply_markup'] = {'inline_keyboard': btn_lst}
+                    # avoid replying to deleted group message
+                    audio_data['message_id'] = -1
+                    quiz_data['question'] = 'meaning:'
+                    data['method'].append(audio_data)
+            except Exception as e:
+                logger.error('Error in generating listening quiz: ', str(e))
+                if full_path != '':
+                    os.remove(full_path)
+                error_data = dict(data)
+                error_data['method'] = 'sendMessage'
+                error_data['text'] = 'Error in generating listening quiz!'
+                data['method'].append(error_data)
+                return
+
         send_poll_data = dict(data)
         # avoid replying to deleted group message
         send_poll_data['message_id'] = -1
         send_poll_data['method'] = 'sendPoll'
         send_poll_data['type'] = 'quiz'
         send_poll_data['is_anonymous'] = False
-        quiz_data = self.generate_quiz(data['callback_msg_text'])
         send_poll_data['question'] = quiz_data['question']
         send_poll_data['options'] = quiz_data['options']
         send_poll_data['correct_option_id'] = quiz_data['correct_option_id']
         send_poll_data['explanation'] = quiz_data['explanation']
         # tg API doc: at least 5s and no more than 600s in the future
         send_poll_data['close_date'] = int(time.time()) + 30
-        data['method'] = [callback_data, del_msg_data, send_poll_data]
+        data['method'].append(send_poll_data)
 
     def generate_quiz(self, msg_text):
         vocabs = []
@@ -51,13 +90,34 @@ class Japanese:
         correct_option_id = random.randint(0, len(vocabs)-1)
         random.shuffle(vocabs)
         answer_vocab = vocabs[correct_option_id]
-        quiz_type = random.randint(1, 2)
-        question = answer_vocab['furigana'] if quiz_type == 1 else answer_vocab[self.jpn_module_lang]
-        options = [vocab[self.jpn_module_lang] if quiz_type == 1 else vocab['furigana'] for vocab in vocabs]
+        quiz_type = random.choice(['furigana', 'furigana', 'meaning', 'meaning', 'listening'])
+        if quiz_type in ['furigana', 'listening']:
+            question = answer_vocab['furigana']
+            options = [vocab[self.jpn_module_lang] for vocab in vocabs]
+        else:
+            question = answer_vocab[self.jpn_module_lang]
+            options = [vocab['furigana'] for vocab in vocabs]
         explanation = '[{}]\n<b>{}</b>\n{}'.format(answer_vocab['furigana'],
                                                    answer_vocab['ja'], answer_vocab[self.jpn_module_lang])
-        return {'question': question, 'options': options,
+        return {'quiz_type': quiz_type, 'question': question, 'options': options,
                 'correct_option_id': correct_option_id, 'explanation': explanation}
+
+    def show_furigana(self, data):
+        data['method'] = 'editMessageCaption, answerCallbackQuery'
+        data['caption'] = data['args']
+        btn_lst = [[{'text': 'Hide furigana', 'callback_data': '/k3 {}'.format(data['args'])}],
+                   [{'text': 'Delete Audio', 'callback_data': '/k4'}]]
+        data['reply_markup'] = {'inline_keyboard': btn_lst}
+
+    def hide_furigana(self, data):
+        data['method'] = 'editMessageCaption, answerCallbackQuery'
+        data['caption'] = ''
+        btn_lst = [[{'text': 'Show furigana', 'callback_data': '/k2 {}'.format(data['args'])}],
+                   [{'text': 'Delete Audio', 'callback_data': '/k4'}]]
+        data['reply_markup'] = {'inline_keyboard': btn_lst}
+
+    def delete_audio(self, data):
+        data['method'] = 'answerCallbackQuery, deleteMessage'
 
     def get_jpn_vocab(self, data):
         if data.get('callback_query_id', -1) != -1:
@@ -163,3 +223,40 @@ class Japanese:
         btn_lst = [[{'text': '查看例子' if self.jpn_module_lang == 'zh' else 'View examples',
                      'callback_data': '/kanji {}'.format(args)}]]
         data['reply_markup'] = {'inline_keyboard': btn_lst}
+
+    def google_text_to_speech(self, text, lang='en-US', gender='FEMALE'):
+        # lang: BCP 47 language tag
+        query_params = {'key':  self.translate_api_key}
+        json_data = {'input': {'text': text},
+                     'voice': {'languageCode': lang, 'ssmlGender': gender},
+                     'audioConfig': {'audioEncoding': 'MP3'}}
+        json_resp = HttpService.post(self.tts_url, query_params, json_data)
+        return json_resp.get('audioContent', '')
+
+    def text_to_speech(self, data):
+        args = data['args'].strip()
+        if len(args) == 0:
+            data['method'] = 'sendMessage'
+            data['text'] = 'Please input some text'
+            return
+        full_path = ''
+        byte_str = self.google_text_to_speech(args, 'ja-JP')
+        if byte_str == '':
+            data['method'] = 'sendMessage'
+            data['text'] = 'Error in generating audio file!'
+            return
+        try:
+            with tempfile.NamedTemporaryFile(suffix='.mp3', mode='wb', delete=False) as f:
+                full_path = f.name
+                f.write(decodebytes(byte_str.encode('utf-8')))
+
+                data['method'] = 'sendAudio'
+                data['caption'] = '<b>{}</b>'.format(args)
+                data['title'] = 'Press to Play'
+                data['audio'] = open(full_path, 'rb')
+        except Exception as e:
+            logger.error('Error in reading audio file: ', str(e))
+            if full_path != '':
+                os.remove(full_path)
+            data['method'] = 'sendMessage'
+            data['text'] = 'Error in reading audio file!'

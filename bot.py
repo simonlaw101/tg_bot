@@ -16,6 +16,8 @@ class Bot:
         self.api = {'sendMessage': self.tg.send_message,
                     'answerCallbackQuery': self.tg.answer_callback_query,
                     'editMessageText': self.tg.edit_message_text,
+                    'editMessageCaption': self.tg.edit_message_caption,
+                    'sendAudio': self.tg.send_audio,
                     'sendDocument': self.tg.send_document,
                     'sendPhoto': self.tg.send_photo,
                     'sendGame': self.tg.send_game,

@@ -165,6 +165,18 @@ class TgService:
             params['reply_markup'] = json.dumps(reply_markup)
         HttpService.post_json(self.API_URL + 'editMessageText', params)
 
+    def edit_message_caption(self, data):
+        if data.get('inline_message_id', -1) != -1:
+            params = {'inline_message_id': data['inline_message_id'],
+                      'caption': data['caption'], 'parse_mode': 'HTML'}
+        else:
+            params = {'chat_id': data['chat_id'], 'message_id': data['message_id'],
+                      'caption': data['caption'], 'parse_mode': 'HTML'}
+        reply_markup = data.get('reply_markup')
+        if reply_markup is not None:
+            params['reply_markup'] = json.dumps(reply_markup)
+        HttpService.post_json(self.API_URL + 'editMessageCaption', params)
+
     def answer_inline_query(self, data):
         params = {'inline_query_id': data['inline_query_id']}
         if data.get('results') is not None:
@@ -203,6 +215,23 @@ class TgService:
         if reply_markup is not None:
             params['reply_markup'] = json.dumps(reply_markup)
         HttpService.post_json(self.API_URL + 'sendPoll', params)
+
+    def send_audio(self, data):
+        params = {'chat_id': data['chat_id'], 'parse_mode': 'HTML'}
+        files = {'audio': data['audio']}
+        if 'caption' in data:
+            params['caption'] = data['caption']
+        if 'title' in data:
+            params['title'] = data['title']
+        message_id = data.get('message_id', -1)
+        if data['chat_id'] < 0 and message_id != -1:
+            params['reply_to_message_id'] = message_id
+        reply_markup = data.get('reply_markup')
+        if reply_markup is not None:
+            params['reply_markup'] = json.dumps(reply_markup)
+        HttpService.post_file(self.API_URL + 'sendAudio', params, files)
+        if not data['audio'].closed:
+            data['audio'].close()
 
 
 class FbService:
@@ -305,6 +334,24 @@ class HttpService:
             return resp.json()
         except Exception as e:
             logger.exception('httpservice post_json Exception: '+str(e))
+            return {}
+
+    @staticmethod
+    def post(url, query_params=None, json_data=None, headers=None):
+        try:
+            resp = requests.post(url, params=query_params, json=json_data, headers=headers)
+            return resp.json()
+        except Exception as e:
+            logger.exception('httpservice post Exception: '+str(e))
+            return {}
+
+    @staticmethod
+    def post_file(url, params=None, files=None, headers=None):
+        try:
+            resp = requests.post(url, data=params, files=files, headers=headers)
+            return resp.json()
+        except Exception as e:
+            logger.exception('httpservice post_file Exception: '+str(e))
             return {}
 
     @staticmethod

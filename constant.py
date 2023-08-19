@@ -95,6 +95,10 @@ class Constant:
                      'example: get info of a kanji\n'
                      'e.g. /kanji 私')
 
+    TTS_EXAMPLE = ('/tts JAPANESE_TEXT\n'
+                     'example: convert japanese text to audio\n'
+                     'e.g. /tts 私')
+
     CCY_DCT = {'AED': 'Emirati Dirham',
                'ARS': 'Argentine Peso',
                'AUD': 'Australian Dollar',
