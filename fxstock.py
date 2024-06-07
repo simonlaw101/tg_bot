@@ -107,7 +107,7 @@ class FxStock:
         code = '{}.HK'.format(code.zfill(4)) if code.isnumeric() else code
         url = 'https://finance.yahoo.com/quote/{}'.format(code)
         url = url + '?region=HK&lang=zh-Hant-HK' if self.stock_info_lang == 'zh' else url
-        headers = {'User-Agent': ''}
+        headers = {'User-Agent': 'Mozilla/5.0 (iPad; CPU OS 12_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'}
         page = HttpService.get(url, headers)
         soup = BeautifulSoup(page.content, 'html.parser')
         stock_info = {}
@@ -118,7 +118,7 @@ class FxStock:
         else:
             stock_info['price'] = price_ele.get_text(strip=True).replace(',', '')
 
-        company_ele = soup.find('h1', {'class': 'D(ib) Fz(18px)'})
+        company_ele = soup.find('h1', {'class': 'svelte-3a2v0c'})
         if company_ele is None or company_ele.get_text(strip=True) == '':
             logger.error('yahoo finance company name is not available!')
         else:
@@ -248,7 +248,7 @@ class FxStock:
 
     def get_idx_info(self, code):
         url = 'https://finance.yahoo.com/quote/{0}?p={0}'.format(code)
-        headers = {'User-Agent': ''}
+        headers = {'User-Agent': 'Mozilla/5.0 (iPad; CPU OS 12_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'}
         page = HttpService.get(url, headers)
         soup = BeautifulSoup(page.content, 'html.parser')
         idx_info = {}
@@ -260,7 +260,7 @@ class FxStock:
         else:
             idx_info['price'] = price_ele.get_text(strip=True).replace(',', '')
 
-        name_ele = soup.find('h1', {'class': 'D(ib) Fz(18px)'})
+        name_ele = soup.find('h1', {'class': 'svelte-3a2v0c'})
         if name_ele is None or name_ele.get_text(strip=True) == '':
             logger.error('yahoo finance index name is not available!')
         else:
