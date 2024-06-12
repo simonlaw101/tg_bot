@@ -114,7 +114,7 @@ class Cloud:
         reply_msg_text = data.get('reply_msg_text', '')
         if reply_msg_text != '':
             args = data['args'].strip()
-            reply_msg_text = reply_msg_text.translate({ord(c): '' for c in '^;/<>\\|`'})
+            reply_msg_text = reply_msg_text.translate({ord(c): '' for c in '^;<>\\|`'})
             if (args != '' and not re.match('^[a-zA-Z0-9_-]+$', args)) or len(args) > 20:
                 data['text'] = 'Message name must be alphanumeric and within 20 characters!'.format(args)
             else:

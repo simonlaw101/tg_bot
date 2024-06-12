@@ -16,9 +16,12 @@ class Bot:
         self.api = {'sendMessage': self.tg.send_message,
                     'answerCallbackQuery': self.tg.answer_callback_query,
                     'editMessageText': self.tg.edit_message_text,
+                    'editMessageCaption': self.tg.edit_message_caption,
+                    'sendAudio': self.tg.send_audio,
                     'sendDocument': self.tg.send_document,
                     'sendPhoto': self.tg.send_photo,
                     'sendGame': self.tg.send_game,
+                    'sendPoll': self.tg.send_poll,
                     'answerInlineQuery': self.tg.answer_inline_query,
                     'deleteMessage': self.tg.delete_message}
         self.refresh_time = refresh
@@ -119,6 +122,10 @@ class Bot:
     def send_cmd_list(self, data):
         data['method'] = 'sendMessage'
         data['text'] = self.desc
+        btn_lst = [line.split(' - ')[0] for line in self.desc.split('\n')[:-1]]
+        btn_lst = ArrayUtil.reshape(btn_lst, col=5)
+        data['reply_markup'] = {"force_reply": True, "keyboard": btn_lst, 'one_time_keyboard': True,
+                                'input_field_placeholder': 'Try command:', 'selective': True, 'resize_keyboard': True}
 
     def send_maint_msg(self, data):
         data['method'] = 'sendMessage'

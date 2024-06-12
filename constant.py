@@ -88,6 +88,17 @@ class Constant:
                    'example 2: view all pinned messages\n'
                    'e.g. /pin')
 
+    KANA_EXAMPLE = ('/kana\n'
+                    'get random japanese vocabulary')
+
+    KANJI_EXAMPLE = ('/kanji KANJI\n'
+                     'example: get info of a kanji\n'
+                     'e.g. /kanji 私')
+
+    TTS_EXAMPLE = ('/tts JAPANESE_TEXT\n'
+                     'example: convert japanese text to audio\n'
+                     'e.g. /tts 私')
+
     CCY_DCT = {'AED': 'Emirati Dirham',
                'ARS': 'Argentine Peso',
                'AUD': 'Australian Dollar',

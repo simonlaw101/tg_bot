@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import os
@@ -53,6 +54,7 @@ class TgService:
             self.set_from(callback_query_obj, data)
             data['callback_query_id'] = callback_query_obj.get('id', -1)
             data['inline_message_id'] = callback_query_obj.get('inline_message_id', -1)
+            data['callback_msg_text'] = message_obj.get('text', '')
             if 'game_short_name' in callback_query_obj:
                 message_obj['text'] = '/'+callback_query_obj['game_short_name']
             else:
@@ -163,6 +165,18 @@ class TgService:
             params['reply_markup'] = json.dumps(reply_markup)
         HttpService.post_json(self.API_URL + 'editMessageText', params)
 
+    def edit_message_caption(self, data):
+        if data.get('inline_message_id', -1) != -1:
+            params = {'inline_message_id': data['inline_message_id'],
+                      'caption': data['caption'], 'parse_mode': 'HTML'}
+        else:
+            params = {'chat_id': data['chat_id'], 'message_id': data['message_id'],
+                      'caption': data['caption'], 'parse_mode': 'HTML'}
+        reply_markup = data.get('reply_markup')
+        if reply_markup is not None:
+            params['reply_markup'] = json.dumps(reply_markup)
+        HttpService.post_json(self.API_URL + 'editMessageCaption', params)
+
     def answer_inline_query(self, data):
         params = {'inline_query_id': data['inline_query_id']}
         if data.get('results') is not None:
@@ -188,6 +202,36 @@ class TgService:
     def get_bot_username(self):
         json_resp = HttpService.post_json(self.API_URL + 'getMe')
         return json_resp.get('result', {}).get('username', '')
+
+    def send_poll(self, data):
+        params = {'chat_id': data['chat_id'], 'type': data['type'], 'question': data['question'],
+                  'options': json.dumps(data['options']), 'correct_option_id': data['correct_option_id'],
+                  'explanation': data['explanation'], 'is_anonymous': data['is_anonymous'],
+                  'close_date': data['close_date'], 'explanation_parse_mode': 'HTML'}
+        message_id = data.get('message_id', -1)
+        reply_markup = data.get('reply_markup')
+        if data['chat_id'] < 0 and message_id != -1:
+            params['reply_to_message_id'] = message_id
+        if reply_markup is not None:
+            params['reply_markup'] = json.dumps(reply_markup)
+        HttpService.post_json(self.API_URL + 'sendPoll', params)
+
+    def send_audio(self, data):
+        params = {'chat_id': data['chat_id'], 'parse_mode': 'HTML'}
+        files = {'audio': data['audio']}
+        if 'caption' in data:
+            params['caption'] = data['caption']
+        if 'title' in data:
+            params['title'] = data['title']
+        message_id = data.get('message_id', -1)
+        if data['chat_id'] < 0 and message_id != -1:
+            params['reply_to_message_id'] = message_id
+        reply_markup = data.get('reply_markup')
+        if reply_markup is not None:
+            params['reply_markup'] = json.dumps(reply_markup)
+        HttpService.post_file(self.API_URL + 'sendAudio', params, files)
+        if not data['audio'].closed:
+            data['audio'].close()
 
 
 class FbService:
@@ -276,12 +320,38 @@ class HttpService:
             return None
 
     @staticmethod
+    def get_json(url, headers=None):
+        try:
+            return requests.get(url, headers=headers).json()
+        except Exception as e:
+            logger.exception('httpservice get_json Exception: '+str(e))
+            return None
+
+    @staticmethod
     def post_json(url, params=None, headers=None):
         try:
             resp = requests.post(url, data=params, headers=headers)
             return resp.json()
         except Exception as e:
             logger.exception('httpservice post_json Exception: '+str(e))
+            return {}
+
+    @staticmethod
+    def post(url, query_params=None, json_data=None, headers=None):
+        try:
+            resp = requests.post(url, params=query_params, json=json_data, headers=headers)
+            return resp.json()
+        except Exception as e:
+            logger.exception('httpservice post Exception: '+str(e))
+            return {}
+
+    @staticmethod
+    def post_file(url, params=None, files=None, headers=None):
+        try:
+            resp = requests.post(url, data=params, files=files, headers=headers)
+            return resp.json()
+        except Exception as e:
+            logger.exception('httpservice post_file Exception: '+str(e))
             return {}
 
     @staticmethod
@@ -293,3 +363,20 @@ class HttpService:
         except Exception as e:
             logger.exception('httpservice cf_get_json Exception: '+str(e))
             return {}
+
+    @staticmethod
+    def async_post_json(url, params_lst):
+        try:
+            loop = asyncio.get_event_loop()
+            responses = loop.run_until_complete(HttpService.get_post_data(url, params_lst))
+            return [response.json() for response in responses]
+        except Exception as e:
+            logger.exception('httpservice async_post_json Exception: '+str(e))
+            return []
+
+    @staticmethod
+    async def get_post_data(url, params_lst):
+        loop = asyncio.get_event_loop()
+        tasks = [loop.run_in_executor(None, requests.post, url, params) for params in params_lst]
+        responses = await asyncio.gather(*tasks)
+        return responses
