@@ -126,8 +126,8 @@ class FxStock:
             company = company[:company.find('(')].strip()
             stock_info['company'] = company
 
-        change_ele = soup.find_all('fin-streamer', {'data-symbol': code, 'data-field': ['regularMarketChange',
-                                                                                        'regularMarketChangePercent']})
+        change_ele = soup.find_all('fin-streamer', {'data-symbol': code, 'class': 'priceChange svelte-mgkamr',
+                                                    'data-field': ['regularMarketChange', 'regularMarketChangePercent']})
         if len(change_ele) > 0 and change_ele[0].select_one('span') is not None:
             stock_info['change'] = ' '.join([e.select_one('span').get_text(strip=True) for e in change_ele])
         else:
