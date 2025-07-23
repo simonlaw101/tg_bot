@@ -8,7 +8,7 @@ from base64 import decodebytes
 from bs4 import BeautifulSoup
 
 from constant import Constant
-from service import HttpService
+from service import HttpService, TranslateService
 
 logger = logging.getLogger('FxStock')
 
@@ -21,13 +21,11 @@ class Japanese:
         self.desc = {'kana': 'get random japanese vocabulary', 'kanji': 'search a kanji',
                      'tts': 'convert japanese text to audio'}
         self.examples = {'kana': Constant.KANA_EXAMPLE, 'kanji': Constant.KANJI_EXAMPLE, 'tts': Constant.TTS_EXAMPLE}
-        self.random_jpn_url = 'https://www.coolgenerator.com/random-japanese-words-generator'
-        self.translate_url = 'https://translation.googleapis.com/language/translate/v2'
-        self.translate_api_key = translate_api_key
+        self.random_jpn_url = 'https://nihongoaz.com/3000-most-common-japanese-words.html'
+        self.translateService = TranslateService(translate_api_key)
         self.kanji_url = 'https://kanjialive-api.p.rapidapi.com/api/public/kanji/{}'
         self.kanji_api_key = kanji_api_key
         self.jpn_module_lang = jpn_module_lang
-        self.tts_url = 'https://texttospeech.googleapis.com/v1/text:synthesize'
 
     def start_quiz(self, data):
         callback_data = dict(data)
@@ -39,7 +37,7 @@ class Japanese:
         quiz_data = self.generate_quiz(data['callback_msg_text'])
         if quiz_data['quiz_type'] == 'listening':
             try:
-                byte_str = self.google_text_to_speech(quiz_data['question'], 'ja-JP')
+                byte_str = self.translateService.google_text_to_speech(quiz_data['question'], 'ja-JP')
                 if byte_str == '':
                     raise ValueError('Error in google text to speech API!')
                 audio_data = dict(data)
@@ -135,47 +133,30 @@ class Japanese:
         data['reply_markup'] = {'inline_keyboard': btn_lst}
 
     def get_random_jpn(self, no_of_word=4):
-        # get random Japanese words from generator (at most 8)
         # add header to fix enable Javascript error
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36'}
         page = HttpService.get(self.random_jpn_url, headers)
         soup = BeautifulSoup(page.content, 'html.parser')
-        ele = soup.find('textarea', {'class': 'form-control'})
+        ele = soup.find('tbody').find_all('tr')
         if ele is None:
             return []
-        text = ele.contents[0].replace('\r', '\n')
-        jpn_lst = re.findall('word: (.+)]   \[meaning:', text)
-        eng_lst = re.findall('\[meaning:(.+)] \n', text)
+        furigana_lst, ja_lst, en_lst = [], [], []
+        for tr in random.sample(ele[1:], no_of_word):
+            tds = tr.find_all('td')[1:]
+            furigana_lst.append(tds[1].get_text(strip=True))
+            ja_lst.append(tds[0].get_text(strip=True))
+            en_lst.append(tds[2].get_text(strip=True))
 
         # get chinese translation if enabled
-        chi_lst = self.async_google_translate(eng_lst[:no_of_word]) if self.jpn_module_lang == 'zh' else []
+        chi_lst = self.translateService.async_google_translate(en_lst) if self.jpn_module_lang == 'zh' else []
 
         word_lst = []
         for i in range(no_of_word):
-            tmp = jpn_lst[i].split('[')
-            tmp_dct = {'ja': tmp[0], 'furigana': tmp[1], 'en': eng_lst[i]}
+            tmp_dct = {'ja': ja_lst[i], 'furigana': furigana_lst[i], 'en': en_lst[i]}
             if len(chi_lst) > 0:
                 tmp_dct['zh'] = chi_lst[i]
             word_lst.append(tmp_dct)
         return word_lst
-
-    def async_google_translate(self, texts, from_lang='en', to_lang='zh-TW'):
-        query_params = {'q': '', 'source': from_lang, 'target': to_lang, 'key': self.translate_api_key}
-        params_lst = []
-        for text in texts:
-            tmp_params = dict(query_params)
-            tmp_params['q'] = text
-            params_lst.append(tmp_params)
-        json_resps = HttpService.async_post_json(self.translate_url, params_lst)
-        return [self.get_translated_text(json_resp) for json_resp in json_resps]
-
-    def get_translated_text(self, json_resp):
-        return json_resp.get('data', {}).get('translations', [{}])[0].get('translatedText', '')
-
-    def google_translate(self, text, from_lang='en', to_lang='zh-TW'):
-        form_data_params = {'q': text, 'source': from_lang, 'target': to_lang, 'key': self.translate_api_key}
-        json_resp = HttpService.post_json(self.translate_url, form_data_params)
-        return self.get_translated_text(json_resp)
 
     def search_kanji(self, data):
         if data.get('callback_query_id', -1) != -1:
@@ -188,7 +169,7 @@ class Japanese:
 
             # get chinese translation if enabled
             if self.jpn_module_lang == 'zh':
-                chi_lst = self.async_google_translate(eng_lst)
+                chi_lst = self.translateService.async_google_translate(eng_lst)
                 template = '<b>{}</b>\n意思: {}\n\n'
             else:
                 chi_lst = []
@@ -216,22 +197,13 @@ class Japanese:
         kunyomi = json_resp['kunyomi']
         onyomi = json_resp['onyomi']
         meaning = json_resp['meaning']
-        meaning = self.google_translate(meaning) if self.jpn_module_lang == 'zh' else meaning
+        meaning = self.translateService.google_translate(meaning) if self.jpn_module_lang == 'zh' else meaning
         template = '<b>{}</b>\n\n訓讀: {}\n音讀: {}\n意思: {}' if self.jpn_module_lang == 'zh' \
             else '<b>{}</b>\n\nkunyomi: {}\nonyomi: {}\nmeaning: {}'
         data['text'] = template.format(args, kunyomi, onyomi, meaning)
         btn_lst = [[{'text': '查看例子' if self.jpn_module_lang == 'zh' else 'View examples',
                      'callback_data': '/kanji {}'.format(args)}]]
         data['reply_markup'] = {'inline_keyboard': btn_lst}
-
-    def google_text_to_speech(self, text, lang='en-US', gender='FEMALE'):
-        # lang: BCP 47 language tag
-        query_params = {'key':  self.translate_api_key}
-        json_data = {'input': {'text': text},
-                     'voice': {'languageCode': lang, 'ssmlGender': gender},
-                     'audioConfig': {'audioEncoding': 'MP3'}}
-        json_resp = HttpService.post(self.tts_url, query_params, json_data)
-        return json_resp.get('audioContent', '')
 
     def text_to_speech(self, data):
         args = data['args'].strip()
@@ -240,7 +212,7 @@ class Japanese:
             data['text'] = 'Please input some text'
             return
         full_path = ''
-        byte_str = self.google_text_to_speech(args, 'ja-JP')
+        byte_str = self.translateService.google_text_to_speech(args, 'ja-JP')
         if byte_str == '':
             data['method'] = 'sendMessage'
             data['text'] = 'Error in generating audio file!'

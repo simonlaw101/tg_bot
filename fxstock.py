@@ -108,17 +108,17 @@ class FxStock:
         url = 'https://finance.yahoo.com/quote/{}'.format(code)
         url = url + '?region=HK&lang=zh-Hant-HK' if self.stock_info_lang == 'zh' else url
         headers = {'User-Agent': 'Mozilla/5.0 (iPad; CPU OS 12_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148'}
-        page = HttpService.get(url, headers)
+        page = HttpService.cf_get(url, headers)
         soup = BeautifulSoup(page.content, 'html.parser')
         stock_info = {}
 
-        price_ele = soup.find('fin-streamer', {'data-symbol': code, 'data-field': 'regularMarketPrice'})
+        price_ele = soup.find('span', {'data-testid': 'qsp-price'})
         if price_ele is None or price_ele.get_text(strip=True) == '':
             logger.error('yahoo finance stock price is not available!')
         else:
             stock_info['price'] = price_ele.get_text(strip=True).replace(',', '')
 
-        company_ele = soup.find('h1', {'class': 'yf-3a2v0c'})
+        company_ele = soup.find('h1', {'class': 'yf-4vbjci'})
         if company_ele is None or company_ele.get_text(strip=True) == '':
             logger.error('yahoo finance company name is not available!')
         else:
@@ -126,10 +126,9 @@ class FxStock:
             company = company[:company.find('(')].strip()
             stock_info['company'] = company
 
-        change_ele = soup.find_all('fin-streamer', {'data-symbol': code, 'class': 'priceChange yf-mgkamr',
-                                                    'data-field': ['regularMarketChange', 'regularMarketChangePercent']})
-        if len(change_ele) > 0 and change_ele[0].select_one('span') is not None:
-            stock_info['change'] = ' '.join([e.select_one('span').get_text(strip=True) for e in change_ele])
+        change_ele = soup.find_all('span', {'data-testid': ['qsp-price-change', 'qsp-price-change-percent']})
+        if len(change_ele) > 0:
+            stock_info['change'] = ' '.join([e.get_text(strip=True) for e in change_ele])
         else:
             logger.error('yahoo finance change is not available!')
 

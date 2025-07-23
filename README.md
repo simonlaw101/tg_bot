@@ -6,7 +6,7 @@ It is a telegram bot for monitoring stock price, exchange rate and index.
 
 ### 0. Prerequisite
 
-Python 3.7
+Python 3.8
 Install Python external library
 ```
 pip3 install beautifulsoup4
