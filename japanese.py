@@ -1,3 +1,4 @@
+import csv
 import logging
 import os
 import random
@@ -122,7 +123,7 @@ class Japanese:
             data['method'] = 'editMessageText, answerCallbackQuery'
         else:
             data['method'] = 'sendMessage'
-        random_jpn_lst = self.get_random_jpn()
+        random_jpn_lst = self.get_random_jpn(read_csv=True)
         if len(random_jpn_lst) == 0:
             data['text'] = 'Error in getting japanese vocabulary!'
             return
@@ -132,20 +133,29 @@ class Japanese:
         btn_lst = [[{'text': 'Start Quiz', 'callback_data': '/k1'}], [{'text': 'Refresh', 'callback_data': '/kana'}]]
         data['reply_markup'] = {'inline_keyboard': btn_lst}
 
-    def get_random_jpn(self, no_of_word=4):
-        # add header to fix enable Javascript error
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36'}
-        page = HttpService.get(self.random_jpn_url, headers)
-        soup = BeautifulSoup(page.content, 'html.parser')
-        ele = soup.find('tbody').find_all('tr')
-        if ele is None:
-            return []
+    def get_random_jpn(self, no_of_word=4, read_csv=False):
         furigana_lst, ja_lst, en_lst = [], [], []
-        for tr in random.sample(ele[1:], no_of_word):
-            tds = tr.find_all('td')[1:]
-            furigana_lst.append(tds[1].get_text(strip=True))
-            ja_lst.append(tds[0].get_text(strip=True))
-            en_lst.append(tds[2].get_text(strip=True))
+        if read_csv:
+            with open('res/japanese/vocab.csv', encoding='utf-8') as f:
+                reader = csv.reader(f)
+                rows = [row for row in reader if row and not row[0].startswith('#')]    # Skip comments
+                for row in random.sample(rows, no_of_word):
+                    furigana_lst.append(row[1])
+                    ja_lst.append(row[0])
+                    en_lst.append(row[2])
+        else:
+            # add header to fix enable Javascript error
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.0.0 Safari/537.36'}
+            page = HttpService.get(self.random_jpn_url, headers)
+            soup = BeautifulSoup(page.content, 'html.parser')
+            ele = soup.find('tbody').find_all('tr')
+            if ele is None:
+                return []
+            for tr in random.sample(ele[1:], no_of_word):
+                tds = tr.find_all('td')[1:]
+                furigana_lst.append(tds[1].get_text(strip=True))
+                ja_lst.append(tds[0].get_text(strip=True))
+                en_lst.append(tds[2].get_text(strip=True))
 
         # get chinese translation if enabled
         chi_lst = self.translateService.async_google_translate(en_lst) if self.jpn_module_lang == 'zh' else []
