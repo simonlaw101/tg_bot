@@ -355,6 +355,15 @@ class HttpService:
             return {}
 
     @staticmethod
+    def cf_get(url, headers=None):
+        try:
+            scraper = cfscrape.create_scraper()
+            return scraper.get(url, headers=headers)
+        except Exception as e:
+            logger.exception('httpservice cf_get Exception: '+str(e))
+            return None
+
+    @staticmethod
     def cf_get_json(url, headers=None):
         try:
             scraper = cfscrape.create_scraper()
@@ -380,3 +389,36 @@ class HttpService:
         tasks = [loop.run_in_executor(None, requests.post, url, params) for params in params_lst]
         responses = await asyncio.gather(*tasks)
         return responses
+
+class TranslateService:
+    def __init__(self, translate_api_key):
+        self.TRANSLATE_API_KEY = translate_api_key
+        self.TRANSLATE_URL = 'https://translation.googleapis.com/language/translate/v2'
+        self.TTS_URL = 'https://texttospeech.googleapis.com/v1/text:synthesize'
+
+    def google_translate(self, text, from_lang='en', to_lang='zh-TW'):
+        form_data_params = {'q': text, 'source': from_lang, 'target': to_lang, 'key': self.TRANSLATE_API_KEY}
+        json_resp = HttpService.post_json(self.TRANSLATE_URL, form_data_params)
+        return self.get_translated_text(json_resp)
+
+    def get_translated_text(self, json_resp):
+        return json_resp.get('data', {}).get('translations', [{}])[0].get('translatedText', '')
+
+    def async_google_translate(self, texts, from_lang='en', to_lang='zh-TW'):
+        query_params = {'q': '', 'source': from_lang, 'target': to_lang, 'key': self.TRANSLATE_API_KEY}
+        params_lst = []
+        for text in texts:
+            tmp_params = dict(query_params)
+            tmp_params['q'] = text
+            params_lst.append(tmp_params)
+        json_resps = HttpService.async_post_json(self.TRANSLATE_URL, params_lst)
+        return [self.get_translated_text(json_resp) for json_resp in json_resps]
+
+    def google_text_to_speech(self, text, lang='en-US', gender='FEMALE'):
+        # lang: BCP 47 language tag
+        query_params = {'key':  self.TRANSLATE_API_KEY}
+        json_data = {'input': {'text': text},
+                     'voice': {'languageCode': lang, 'ssmlGender': gender},
+                     'audioConfig': {'audioEncoding': 'MP3'}}
+        json_resp = HttpService.post(self.TTS_URL, query_params, json_data)
+        return json_resp.get('audioContent', '')
