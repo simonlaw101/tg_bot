@@ -5,12 +5,6 @@ import sys
 from logging.handlers import TimedRotatingFileHandler
 
 from bot import Bot
-from cloud import Cloud
-from doodle import Doodle
-from fxstock import FxStock
-from japanese import Japanese
-from ocr import Ocr
-from service import FbService
 
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -22,18 +16,28 @@ token = config[env]['token']
 refresh_time = config[env].getfloat('refresh_time')
 cloud_db = config[env].getboolean('cloud_db')
 cloud_module = config[env].getboolean('cloud_module')
-fb = FbService(config[env].get('fb_bucket_name')) if cloud_db or cloud_module else None
+fb = None
 
 modules = []
+if cloud_db or cloud_module:
+    from service import FbService
+    fb = FbService(config[env].get('fb_bucket_name'))
 if config[env].getboolean('fxstock_module'):
+    from fxstock import FxStock
     db = fb if cloud_db else None
     modules.append(FxStock(db, config[env].getboolean('send_email'), config[env].get('stock_info_lang')))
 if config[env].getboolean('ocr_module'):
+    from ocr import Ocr
     ocr_api_key = config[env].get('ocr_api_key')
     modules.append(Ocr(ocr_api_key) if ocr_api_key else Ocr())
-if config[env].getboolean('doodle_module'): modules.append(Doodle(config[env].get('doodle_url')))
-if cloud_module: modules.append(Cloud(fb))
+if config[env].getboolean('doodle_module'):
+    from doodle import Doodle
+    modules.append(Doodle(config[env].get('doodle_url')))
+if cloud_module:
+    from cloud import Cloud
+    modules.append(Cloud(fb))
 if config[env].getboolean('japanese_module'):
+    from japanese import Japanese
     modules.append(Japanese(config[env].get('kanji_api_key'), config[env].get('jpn_module_lang'),
                             config[env].get('translate_api_key')))
 
