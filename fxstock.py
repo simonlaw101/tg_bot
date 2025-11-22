@@ -252,14 +252,13 @@ class FxStock:
         soup = BeautifulSoup(page.content, 'html.parser')
         idx_info = {}
 
-        price_ele = soup.find('fin-streamer', {'data-symbol': code.replace('%5E', '^'),
-                                               'data-field': 'regularMarketPrice'})
+        price_ele = soup.find('span', {'data-testid': 'qsp-price'})
         if price_ele is None or price_ele.get_text(strip=True) == '':
             logger.error('yahoo finance index is not available!')
         else:
             idx_info['price'] = price_ele.get_text(strip=True).replace(',', '')
 
-        name_ele = soup.find('h1', {'class': 'yf-3a2v0c'})
+        name_ele = soup.find('h1', {'class': 'yf-4vbjci'})
         if name_ele is None or name_ele.get_text(strip=True) == '':
             logger.error('yahoo finance index name is not available!')
         else:
@@ -267,11 +266,9 @@ class FxStock:
             name = name[:name.find('(')].strip()
             idx_info['name'] = name
 
-        change_ele = soup.find_all('fin-streamer', {'data-symbol': code.replace('%5E', '^'),
-                                                    'data-field': ['regularMarketChange',
-                                                                   'regularMarketChangePercent']})
-        if len(change_ele) > 0 and change_ele[0].select_one('span') is not None:
-            idx_info['change'] = ' '.join([e.select_one('span').get_text(strip=True) for e in change_ele])
+        change_ele = soup.find_all('span', {'data-testid': ['qsp-price-change', 'qsp-price-change-percent']})
+        if len(change_ele) > 0:
+            idx_info['change'] = ' '.join([e.get_text(strip=True) for e in change_ele])
         else:
             logger.error('yahoo finance index change is not available!')
 
