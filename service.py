@@ -1,5 +1,6 @@
 import asyncio
 import json
+import io
 import logging
 import os
 import requests
@@ -105,18 +106,30 @@ class TgService:
         HttpService.post_json(self.API_URL + 'sendMessage', params)
 
     def send_photo(self, data):
-        params = {'chat_id': data['chat_id'], 'photo': data['photo'], 'parse_mode': 'HTML'}
+        params = {'chat_id': data['chat_id'], 'photo': data['photo']}
+        if 'caption' in data:
+            params['caption'] = data['caption']
+            params['parse_mode'] = 'HTML'
         message_id = data.get('message_id', -1)
         if data['chat_id'] < 0 and message_id != -1:
             params['reply_to_message_id'] = message_id
         HttpService.post_json(self.API_URL + 'sendPhoto', params)
 
     def send_document(self, data):
-        params = {'chat_id': data['chat_id'], 'document': data['document'], 'parse_mode': 'HTML'}
+        params = {'chat_id': data['chat_id']}
+        if 'caption' in data:
+            params['caption'] = data['caption']
+            params['parse_mode'] = 'HTML'
         message_id = data.get('message_id', -1)
         if data['chat_id'] < 0 and message_id != -1:
             params['reply_to_message_id'] = message_id
-        HttpService.post_json(self.API_URL + 'sendDocument', params)
+        if 'files' in data:
+            # post the file using multipart/form-data. 10 MB max size for photos, 50 MB for other files.
+            files = {"document": data['files']}
+            HttpService.post_file(self.API_URL + 'sendDocument', params=params, files=files)
+        else:
+            params['document'] = data['document']
+            HttpService.post_json(self.API_URL + 'sendDocument', params)
 
     def delete_message(self, data):
         params = {'chat_id': data['chat_id'], 'message_id': data['message_id']}
@@ -217,10 +230,11 @@ class TgService:
         HttpService.post_json(self.API_URL + 'sendPoll', params)
 
     def send_audio(self, data):
-        params = {'chat_id': data['chat_id'], 'parse_mode': 'HTML'}
+        params = {'chat_id': data['chat_id']}
         files = {'audio': data['audio']}
         if 'caption' in data:
             params['caption'] = data['caption']
+            params['parse_mode'] = 'HTML'
         if 'title' in data:
             params['title'] = data['title']
         message_id = data.get('message_id', -1)
@@ -389,6 +403,20 @@ class HttpService:
         tasks = [loop.run_in_executor(None, requests.post, url, params) for params in params_lst]
         responses = await asyncio.gather(*tasks)
         return responses
+
+    @staticmethod
+    def get_file(url, headers=None, stream=True):
+        try:
+            response = requests.get(url, headers=headers, stream=stream)
+            if response.status_code == 200:
+                file = io.BytesIO(response.content)
+                file.seek(0)
+                return file
+            else:
+                logger.exception('httpservice get_file error status code: '+str(response.status_code))
+        except Exception as e:
+            logger.exception('httpservice get_file Exception: '+str(e))
+        return None
 
 class TranslateService:
     def __init__(self, translate_api_key):

@@ -93,14 +93,25 @@ class Cloud:
     def cloud_download(self, data):
         if data.get('callback_query_id', -1) != -1:
             args = data['args'].strip()
+            filename = os.path.split(args)[1]
             if os.path.splitext(args)[1].lower() in ['.gif', '.jpg', '.jpeg', '.png']:
-                data['method'] = 'sendPhoto, answerCallbackQuery, editMessageText'
-                data['text'] = '{} downloaded successfully'.format(os.path.split(args)[1])
+                data['method'] = 'sendPhoto, answerCallbackQuery, deleteMessage'
                 data['photo'] = self.fb.get_file_url(args)
-            else:
-                data['method'] = 'sendDocument, answerCallbackQuery, editMessageText'
-                data['text'] = '{} downloaded successfully'.format(os.path.split(args)[1])
+                data['caption'] = '{} downloaded successfully'.format(filename)
+            elif os.path.splitext(args)[1].lower() in ['.pdf', '.zip']:
+                data['method'] = 'sendDocument, answerCallbackQuery, deleteMessage'
                 data['document'] = self.fb.get_file_url(args)
+                data['caption'] = '{} downloaded successfully'.format(filename)
+            else:
+                file = HttpService.get_file(self.fb.get_file_url(args))
+                if file:
+                    file.name = filename
+                    data['method'] = 'sendDocument, answerCallbackQuery, deleteMessage'
+                    data['files'] = file
+                    data['caption'] = '{} downloaded successfully'.format(filename)
+                else:
+                    data['method'] = 'answerCallbackQuery, editMessageText'
+                    data['text'] = '{} download failed!'.format(filename)
 
     def cloud_delete(self, data):
         if data.get('callback_query_id', -1) != -1:
