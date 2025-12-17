@@ -80,7 +80,7 @@ class TgService:
         elif data['message_text'].startswith(('/ocr', '/cloud')) and 'reply_to_message' in message_obj:
             file_id = self.get_file_id(message_obj['reply_to_message'])
             data['file_url'] = '' if file_id == '' else self.get_file_url(file_id)
-        elif data['message_text'].startswith('/pin') and 'reply_to_message' in message_obj:
+        elif data['message_text'].startswith(('/pin', '/tts')) and 'reply_to_message' in message_obj:
             data['reply_msg_text'] = message_obj['reply_to_message'].get('text', '')
         return data
 

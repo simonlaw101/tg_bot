@@ -118,7 +118,7 @@ class FxStock:
         else:
             stock_info['price'] = price_ele.get_text(strip=True).replace(',', '')
 
-        company_ele = soup.find('h1', {'class': 'yf-4vbjci'})
+        company_ele = soup.find('h1', {'class': 'yf-18s5v3y'})
         if company_ele is None or company_ele.get_text(strip=True) == '':
             logger.error('yahoo finance company name is not available!')
         else:
@@ -258,7 +258,7 @@ class FxStock:
         else:
             idx_info['price'] = price_ele.get_text(strip=True).replace(',', '')
 
-        name_ele = soup.find('h1', {'class': 'yf-4vbjci'})
+        name_ele = soup.find('h1', {'class': 'yf-18s5v3y'})
         if name_ele is None or name_ele.get_text(strip=True) == '':
             logger.error('yahoo finance index name is not available!')
         else:

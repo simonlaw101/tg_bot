@@ -216,7 +216,8 @@ class Japanese:
         data['reply_markup'] = {'inline_keyboard': btn_lst}
 
     def text_to_speech(self, data):
-        args = data['args'].strip()
+        args = data.get('reply_msg_text', data['args'])
+        args = args.strip()
         if len(args) == 0:
             data['method'] = 'sendMessage'
             data['text'] = 'Please input some text'
